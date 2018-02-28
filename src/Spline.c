@@ -10,9 +10,14 @@ struct Point {
     double y;
 };
 
+struct Points {
+    int size;
+    struct Point *points;
+};
+
 #define maxPoints 50
-struct Point points[maxPoints];
-int pointsCnt = 0;
+struct Point pointsList[maxPoints];
+struct Points userPoints = {0, pointsList};
 
 int showWorkingLines = 1;
 int showSpline = 1;
@@ -58,7 +63,7 @@ int toggleValue(int val) {
 }
 
 void clearPoints() {
-    pointsCnt = 0;
+    userPoints.size = 0;
 }
 
 void mouseFunc(int button, int state, int x, int y) {
@@ -72,68 +77,91 @@ void mouseFunc(int button, int state, int x, int y) {
 }
 
 void addNewPoint(double x, double y) {
-    if (pointsCnt < maxPoints) {
-        struct Point p;
-        p.x = x;
-        p.y = y;
-        points[pointsCnt] = p;
-        pointsCnt++;
+    if (userPoints.size < maxPoints) {
+        struct Point p = {x, y};
+        userPoints.points[userPoints.size] = p;
+        userPoints.size++;
     }
 }
 
 void render(void) {
     glClear(GL_COLOR_BUFFER_BIT);
 
-    drawLine(points, pointsCnt);
-    drawPoints(points, pointsCnt, 6, 0.0f, 0.0f, 0.0f);
+    drawLine(userPoints);
+    drawPoints(userPoints, 6, 0.0f, 0.0f, 0.0f);
 
     if (showWorkingLines) {
-        drawHelpingPoints(points, pointsCnt);
+        drawHelpers(userPoints);
     }
 
     glFlush();
 }
 
-void drawLine(struct Point pts[], int size) {
-    if (size > 1) {
+void drawLine(struct Points pts) {
+    if (pts.size > 1) {
         glLineWidth(1);
         glColor3f(0.0f, 0.0f, 0.8f);
 
         glBegin(GL_LINE_STRIP);
-        for (int i = 0; i < pointsCnt; i++) {
-            glVertex2f(points[i].x, points[i].y);
+        for (int i = 0; i < pts.size; i++) {
+            glVertex2f(pts.points[i].x, pts.points[i].y);
         }
         glEnd();
     }
 }
 
-void drawHelpingPoints(struct Point pts[], int size) {
-    if (size < 2) {
-        return;
-    }
-
-    glPointSize(3);
-    glColor3f(1.0f, 0.0f, 0.8f);
-
-    glBegin(GL_POINTS);
-    for (int i = 1; i < size; i++) {
-        double x = (pts[i].x + pts[i-1].x) / 2;
-        double y = (pts[i].y + pts[i-1].y) / 2;
-        glVertex2f(x, y);
-    }
-    glEnd();
-}
-
-void drawPoints(struct Point pts[], int len, int pointSize, float red, float green, float blue) {
+void drawPoints(struct Points pts, int pointSize, float red, float green, float blue) {
     glPointSize(pointSize);
     glColor3f(red, green, blue);
 
     glBegin(GL_POINTS);
-    for (int i = 0; i < len; i++) {
-        glVertex2f(pts[i].x, pts[i].y);
+    for (int i = 0; i < pts.size; i++) {
+        glVertex2f(pts.points[i].x, pts.points[i].y);
     }
     glEnd();
 }
+
+struct Points getMidPoints(struct Points pts) {
+    int size = pts.size + 1;
+    struct Point midPoints[size];
+
+    struct Point first = {pts.points[0].x, pts.points[0].y};
+    midPoints[0] = first;
+
+    printf("size: %d\n", size);
+    printf("last x: %f, y: %f\n", first.x, first.y);
+
+    for (int i = 0; i < pts.size - 1; i++) {
+        double x = (pts.points[i].x + pts.points[i + 1].x) / 2;
+        double y = (pts.points[i].y + pts.points[i + 1].y) / 2;
+
+        printf("x: %f, y: %f\n", x, y);
+        struct Point p = {x, y};
+        midPoints[i + 1] = p;
+    }
+
+    struct Point last = {pts.points[pts.size - 1].x, pts.points[pts.size - 1].y};
+    midPoints[size - 1] = last;
+
+    printf("last x: %f, y: %f\n", last.x, last.y);
+    struct Points result = {size, midPoints};
+    return result;
+}
+
+void drawHelpers(struct Points userPoints) {
+    if (userPoints.size < 3) {
+        return;
+    }
+
+    struct Points midPoints = userPoints;
+
+    for (int i = 0; i < 5; i++) {
+        midPoints = getMidPoints(midPoints);
+        drawLine(midPoints);
+        drawPoints(midPoints, 6, 1.0f, 0.0f, 0.8f);
+    }
+}
+
 
 void initRendering() {
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
