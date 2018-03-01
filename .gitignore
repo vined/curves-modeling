@@ -35,6 +35,8 @@
 CMakeCache.txt
 CMakeFiles/
 cmake-build-debug/
+cmake_install.cmake
+Makefile
 
 # Idea
 .idea/
@@ -42,3 +44,4 @@ cmake-build-debug/
 
 # Project
 opengl-examples/
+curves_modeling*

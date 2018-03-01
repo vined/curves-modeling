@@ -16,5 +16,5 @@ endif (NOT GLUT_FOUND)
 link_libraries (${OPENGL_LIBRARIES} ${GLUT_LIBRARIES})
 
 add_executable(curves_modeling
-        src/Spline.c
+        src/Spline.cpp
         src/Spline.h)
