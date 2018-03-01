@@ -122,29 +122,42 @@ void drawPoints(struct Points pts, int pointSize, float red, float green, float 
 }
 
 struct Points getMidPoints(struct Points pts) {
-    int size = pts.size + 1;
-    struct Point midPoints[size];
+    if (pts.size == 1) {
+        return pts;
+    }
+
+    int tmpSize = pts.size - 1;
+    struct Point tmp[tmpSize];
+    for (int i = 0; i < tmpSize; i++) {
+        double x = (pts.points[i].x + pts.points[i + 1].x) / 2.0;
+        double y = (pts.points[i].y + pts.points[i + 1].y) / 2.0;
+
+        struct Point p = {x, y};
+        tmp[i] = p;
+    }
+
+    struct Points tmpPts = {tmpSize, tmp};
+    struct Points midPoints = getMidPoints(tmpPts);
+
+    int size = midPoints.size + 2;
+    struct Point newPoints[size];
 
     struct Point first = {pts.points[0].x, pts.points[0].y};
-    midPoints[0] = first;
+    newPoints[0] = first;
 
-    printf("size: %d\n", size);
-    printf("last x: %f, y: %f\n", first.x, first.y);
+    printf("first x: %f, y: %f\n", newPoints[0].x, newPoints[0].y);
 
-    for (int i = 0; i < pts.size - 1; i++) {
-        double x = (pts.points[i].x + pts.points[i + 1].x) / 2;
-        double y = (pts.points[i].y + pts.points[i + 1].y) / 2;
-
-        printf("x: %f, y: %f\n", x, y);
-        struct Point p = {x, y};
-        midPoints[i + 1] = p;
+    for (int i = 0; i < midPoints.size; i++) {
+        struct Point p = midPoints.points[i];
+        newPoints[i+1] = p;
+        printf("x: %f, y: %f\n", p.x, p.y);
     }
 
     struct Point last = {pts.points[pts.size - 1].x, pts.points[pts.size - 1].y};
-    midPoints[size - 1] = last;
+    newPoints[size - 1] = last;
 
-    printf("last x: %f, y: %f\n", last.x, last.y);
-    struct Points result = {size, midPoints};
+    printf("last x: %f, y: %f\n", newPoints[size - 1].x, newPoints[size - 1].y);
+    struct Points result = {size, newPoints};
     return result;
 }
 
@@ -155,13 +168,12 @@ void drawHelpers(struct Points userPoints) {
 
     struct Points midPoints = userPoints;
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 1; i++) {
         midPoints = getMidPoints(midPoints);
         drawLine(midPoints);
         drawPoints(midPoints, 6, 1.0f, 0.0f, 0.8f);
     }
 }
-
 
 void initRendering() {
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
