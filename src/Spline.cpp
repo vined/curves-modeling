@@ -6,23 +6,31 @@
 #include <math.h>
 
 
+#define THICK_LINE 3
+#define THIN_LINE 1
+
 struct Point {
-    double x;
-    double y;
+    double x,y;
 };
 
-//std::vector<Point> {
-//    int size;
-//    struct Point *points;
-//};
+struct Color {
+    float r,g,b;
+};
 
-//#define maxPoints 50
-//struct Point pointsList[maxPoints];
-//std::vector<Point> userPoints = {0, pointsList};
+struct Color USER_POINTS_COLOR = {0.0f, 0.0f, 0.0f};
+struct Color WIRE_LINES_COLOR = {0.0f, 0.0f, 0.8f};
+struct Color SPLINE_COLOR = {1.0f, 0.0f, 0.8f};
+
+#define maxColors 5
+struct Color pointsColors[maxColors];
+struct Color linesColors[maxColors];
+
+
 std::vector<Point> userPoints;
 
 int showWorkingLines = 1;
 int showSpline = 1;
+int showWire = 1;
 
 int windowHeight;
 int windowWidth;
@@ -35,12 +43,16 @@ int toggleValue(int val) {
     }
 }
 
-void toggleShowWorkingLines(void) {
+void toggleShowWorkingLines() {
     showWorkingLines = toggleValue(showWorkingLines);
 }
 
-void toggleShowSpline(void) {
+void toggleShowSpline() {
     showSpline = toggleValue(showSpline);
+}
+
+void toggleShowWire() {
+    showWire = toggleValue(showWire);
 }
 
 void clearPoints() {
@@ -62,10 +74,10 @@ void mouseFunc(int button, int state, int x, int y) {
     }
 }
 
-void drawLine(std::vector<Point> pts) {
+void drawLine(std::vector<Point> pts, int width, struct Color color) {
     if (pts.size() > 1) {
-        glLineWidth(1);
-        glColor3f(0.0f, 0.0f, 0.8f);
+        glLineWidth(width);
+        glColor3f(color.r, color.g, color.b);
 
         glBegin(GL_LINE_STRIP);
         for (int i = 0; i < pts.size(); i++) {
@@ -75,9 +87,9 @@ void drawLine(std::vector<Point> pts) {
     }
 }
 
-void drawPoints(std::vector<Point> pts, int pointSize, float red, float green, float blue) {
+void drawPoints(std::vector<Point> pts, int pointSize, struct Color color) {
     glPointSize(pointSize);
-    glColor3f(red, green, blue);
+    glColor3f(color.r, color.g, color.b);
 
     glBegin(GL_POINTS);
     for (int i = 0; i < pts.size(); i++) {
@@ -110,7 +122,7 @@ std::vector<Point> getMidPoints(std::vector<Point> pts) {
 
     for (int i = 0; i < midPoints.size(); i++) {
         newPoints.push_back(midPoints[i]);
-        printf("x: %f, y: %f\n", newPoints[i+1].x, newPoints[i+1].y);
+        printf("x: %f, y: %f\n", newPoints[i].x, newPoints[i].y);
     }
 
     newPoints.push_back(pts[pts.size() - 1]);
@@ -119,33 +131,81 @@ std::vector<Point> getMidPoints(std::vector<Point> pts) {
     return newPoints;
 }
 
-void drawHelpers(std::vector<Point> userPoints) {
-    if (userPoints.size() < 3) {
-        return;
+std::vector<Point> getInnerPoints(std::vector<Point> initialPoints) {
+
+    std::vector<Point> splinePoints;
+
+    for (int i = 0; i < initialPoints.size() - 2; i+=2) {
+        std::vector<Point> innerPoints;
+
+        innerPoints.push_back(initialPoints[i]);
+        innerPoints.push_back(initialPoints[i + 1]);
+        innerPoints.push_back(initialPoints[i + 2]);
+
+        innerPoints = getMidPoints(innerPoints);
+
+        if (i > 0) {
+            splinePoints.insert(splinePoints.end(), innerPoints.begin()+1, innerPoints.end());
+        } else {
+            splinePoints.insert(splinePoints.end(), innerPoints.begin(), innerPoints.end());
+        }
     }
 
-    std::vector<Point> midPoints = userPoints;
+
+    return splinePoints;
+}
+
+std::vector<Point> getSplinePoints(std::vector<Point> userPoints) {
+    if (userPoints.size() < 3) {
+        std::vector<Point> empty;
+        return empty;
+    }
+
+    std::vector<Point> splinePoints = userPoints;
 
     for (int i = 0; i < 5; i++) {
-        midPoints = getMidPoints(midPoints);
-        drawLine(midPoints);
-        drawPoints(midPoints, 6, 1.0f, 0.0f, 0.8f);
+
+        splinePoints = getInnerPoints(splinePoints);
+
+        if (showWorkingLines) {
+            drawLine(splinePoints, THIN_LINE, linesColors[i]);
+            drawPoints(splinePoints, 6, pointsColors[i]);
+        }
     }
+
+    return splinePoints;
 }
 
 void render() {
     glClear(GL_COLOR_BUFFER_BIT);
 
-    drawLine(userPoints);
-    drawPoints(userPoints, 6, 0.0f, 0.0f, 0.0f);
-
-    if (showWorkingLines) {
-        drawHelpers(userPoints);
+    if (showWire) {
+        drawLine(userPoints, THIN_LINE, WIRE_LINES_COLOR);
     }
+
+    std::vector<Point> splinePoints = getSplinePoints(userPoints);
+    if (showSpline) {
+        drawLine(splinePoints, THICK_LINE, SPLINE_COLOR);
+    }
+
+    drawPoints(userPoints, 6, USER_POINTS_COLOR);
 
     glFlush();
 }
 
+void initColors() {
+    pointsColors[0] = {0.5f, 0.8f, 0.2f};
+    pointsColors[1] = {0.1f, 0.8f, 0.8f};
+    pointsColors[2] = {0.5f, 0.1f, 0.2f};
+    pointsColors[3] = {0.8f, 0.5f, 0.2f};
+    pointsColors[4] = {0.5f, 0.1f, 0.9f};
+
+    linesColors[0] = {0.5f, 0.8f, 0.2f};
+    linesColors[1] = {0.1f, 0.8f, 0.8f};
+    linesColors[2] = {0.5f, 0.1f, 0.2f};
+    linesColors[3] = {0.8f, 0.5f, 0.2f};
+    linesColors[4] = {0.5f, 0.1f, 0.9f};
+}
 void initRendering() {
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
@@ -174,8 +234,12 @@ void keyboardFunc(unsigned char key, int x, int y) {
             toggleShowSpline();
             glutPostRedisplay();
             break;
-        case 'w':
+        case 'h':
             toggleShowWorkingLines();
+            glutPostRedisplay();
+            break;
+        case 'w':
+            toggleShowWire();
             glutPostRedisplay();
             break;
         case 'c':
@@ -196,6 +260,7 @@ int main(int argc, char **argv) {
     glutInitWindowPosition(100, 100);
     glutCreateWindow(argv[0]);
     initRendering();
+    initColors();
 
     glutDisplayFunc(render);
     glutReshapeFunc(resizeWindow);
