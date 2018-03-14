@@ -1,4 +1,4 @@
-#include "Spline.h"
+#include "Casteljau.h"
 #include <stdlib.h>
 #include <GL/glut.h>
 #include <stdio.h>
@@ -8,6 +8,10 @@
 
 #define THICK_LINE 3
 #define THIN_LINE 1
+#define IT_CNT 5
+#define MAX_IT_CNT 10
+
+const int ESC = 27;
 
 struct Point {
     double x,y;
@@ -31,6 +35,8 @@ std::vector<Point> userPoints;
 int showWorkingLines = 1;
 int showSpline = 1;
 int showWire = 1;
+int iterationsCount = IT_CNT;
+int drawOnlyLastIteration = 0;
 
 int windowHeight;
 int windowWidth;
@@ -57,6 +63,16 @@ void toggleShowWire() {
 
 void clearPoints() {
     userPoints.clear();
+}
+
+void updateIterationsCount(int cnt) {
+    if (cnt >= 0 && cnt <= MAX_IT_CNT) {
+        iterationsCount = cnt;
+    }
+}
+
+void toggleDrawOnlyLastIteration() {
+    drawOnlyLastIteration = toggleValue(drawOnlyLastIteration);
 }
 
 void addNewPoint(double x, double y) {
@@ -163,11 +179,11 @@ std::vector<Point> getSplinePoints(std::vector<Point> userPoints) {
 
     std::vector<Point> splinePoints = userPoints;
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < iterationsCount; i++) {
 
         splinePoints = getInnerPoints(splinePoints);
 
-        if (showWorkingLines) {
+        if (showWorkingLines && (!drawOnlyLastIteration || i == iterationsCount - 1) ) {
             drawLine(splinePoints, THIN_LINE, linesColors[i]);
             drawPoints(splinePoints, 6, pointsColors[i]);
         }
@@ -246,8 +262,21 @@ void keyboardFunc(unsigned char key, int x, int y) {
             clearPoints();
             glutPostRedisplay();
             break;
+        case 'k':
+            updateIterationsCount(iterationsCount + 1);
+            glutPostRedisplay();
+            break;
+        case 'j':
+            updateIterationsCount(iterationsCount - 1);
+            glutPostRedisplay();
+            break;
+        case 'l':
+            toggleDrawOnlyLastIteration();
+            glutPostRedisplay();
+            break;
         case 'x':
-        case 27: // Escape key
+        case 'q':
+        case ESC:
             exit(0);
             break;
     }

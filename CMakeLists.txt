@@ -16,5 +16,5 @@ endif (NOT GLUT_FOUND)
 link_libraries (${OPENGL_LIBRARIES} ${GLUT_LIBRARIES})
 
 add_executable(curves_modeling
-        src/Spline.cpp
-        src/Spline.h)
+        src/Casteljau.cpp
+        src/Casteljau.h src/Bezier.cc src/Bezier.h)
