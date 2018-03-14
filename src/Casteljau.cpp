@@ -1,9 +1,12 @@
-#include "Casteljau.h"
 #include <stdlib.h>
 #include <GL/glut.h>
 #include <stdio.h>
 #include <vector>
 #include <math.h>
+
+#include "Casteljau.h"
+#include "utils/Renderer.h"
+#include "utils/Colors.h"
 
 
 #define THICK_LINE 3
@@ -17,18 +20,6 @@ struct Point {
     double x,y;
 };
 
-struct Color {
-    float r,g,b;
-};
-
-struct Color USER_POINTS_COLOR = {0.0f, 0.0f, 0.0f};
-struct Color WIRE_LINES_COLOR = {0.0f, 0.0f, 0.8f};
-struct Color SPLINE_COLOR = {1.0f, 0.0f, 0.8f};
-
-#define maxColors 5
-struct Color pointsColors[maxColors];
-struct Color linesColors[maxColors];
-
 
 std::vector<Point> userPoints;
 
@@ -37,9 +28,6 @@ int showSpline = 1;
 int showWire = 1;
 int iterationsCount = IT_CNT;
 int drawOnlyLastIteration = 0;
-
-int windowHeight;
-int windowWidth;
 
 int toggleValue(int val) {
     if (val == 0) {
@@ -80,10 +68,10 @@ void addNewPoint(double x, double y) {
     userPoints.push_back(p);
 }
 
-void mouseFunc(int button, int state, int x, int y) {
+void mouseFn(int button, int state, int x, int y) {
     if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
-        double xPos = ((float) x) / ((float) (windowWidth - 1));
-        double yPos = 1.0f - ((float) y) / ((float) (windowHeight - 1));
+        double xPos = ((float) x) / ((float) (getWindowWidth() - 1));
+        double yPos = 1.0f - ((float) y) / ((float) (getWindowHeight() - 1));
 
         addNewPoint(xPos, yPos);
         glutPostRedisplay();
@@ -129,21 +117,14 @@ std::vector<Point> getMidPoints(std::vector<Point> pts) {
     }
 
     std::vector<Point> midPoints = getMidPoints(tmpPts);
-
     std::vector<Point> newPoints;
-
     newPoints.push_back(pts[0]);
 
-    printf("first x: %f, y: %f\n", newPoints[0].x, newPoints[0].y);
-
-    for (int i = 0; i < midPoints.size(); i++) {
-        newPoints.push_back(midPoints[i]);
-        printf("x: %f, y: %f\n", newPoints[i].x, newPoints[i].y);
+    for (Point pt: midPoints) {
+        newPoints.push_back(pt);
     }
 
     newPoints.push_back(pts[pts.size() - 1]);
-
-    printf("last x: %f, y: %f\n", newPoints[newPoints.size() - 1].x, newPoints[newPoints.size() - 1].y);
     return newPoints;
 }
 
@@ -167,11 +148,11 @@ std::vector<Point> getInnerPoints(std::vector<Point> initialPoints) {
         }
     }
 
-
     return splinePoints;
 }
 
 std::vector<Point> getSplinePoints(std::vector<Point> userPoints) {
+
     if (userPoints.size() < 3) {
         std::vector<Point> empty;
         return empty;
@@ -184,8 +165,8 @@ std::vector<Point> getSplinePoints(std::vector<Point> userPoints) {
         splinePoints = getInnerPoints(splinePoints);
 
         if (showWorkingLines && (!drawOnlyLastIteration || i == iterationsCount - 1) ) {
-            drawLine(splinePoints, THIN_LINE, linesColors[i]);
-            drawPoints(splinePoints, 6, pointsColors[i]);
+            drawLine(splinePoints, THIN_LINE, getLineColor(i));
+            drawPoints(splinePoints, 6, getPointColor(i));
         }
     }
 
@@ -196,55 +177,20 @@ void render() {
     glClear(GL_COLOR_BUFFER_BIT);
 
     if (showWire) {
-        drawLine(userPoints, THIN_LINE, WIRE_LINES_COLOR);
+        drawLine(userPoints, THIN_LINE, getDefaultWireLineColor());
     }
 
     std::vector<Point> splinePoints = getSplinePoints(userPoints);
     if (showSpline) {
-        drawLine(splinePoints, THICK_LINE, SPLINE_COLOR);
+        drawLine(splinePoints, THICK_LINE, getDefaultSplineColor());
     }
 
-    drawPoints(userPoints, 6, USER_POINTS_COLOR);
+    drawPoints(userPoints, 6, getDefaultUserPointColor());
 
     glFlush();
 }
 
-void initColors() {
-    pointsColors[0] = {0.5f, 0.8f, 0.2f};
-    pointsColors[1] = {0.1f, 0.8f, 0.8f};
-    pointsColors[2] = {0.5f, 0.1f, 0.2f};
-    pointsColors[3] = {0.8f, 0.5f, 0.2f};
-    pointsColors[4] = {0.5f, 0.1f, 0.9f};
-
-    linesColors[0] = {0.5f, 0.8f, 0.2f};
-    linesColors[1] = {0.1f, 0.8f, 0.8f};
-    linesColors[2] = {0.5f, 0.1f, 0.2f};
-    linesColors[3] = {0.8f, 0.5f, 0.2f};
-    linesColors[4] = {0.5f, 0.1f, 0.9f};
-}
-void initRendering() {
-    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-
-    glEnable(GL_POINT_SMOOTH);
-    glEnable(GL_LINE_SMOOTH);
-    glHint(GL_POINT_SMOOTH_HINT, GL_NICEST); // Make round points, not square points
-    glHint(GL_LINE_SMOOTH_HINT, GL_NICEST); // Antialias the lines
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-}
-
-void resizeWindow(int w, int h) {
-    windowHeight = (h > 1) ? h : 2;
-    windowWidth = (w > 1) ? w : 2;
-    glViewport(0, 0, (GLsizei) w, (GLsizei) h);
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    gluOrtho2D(0.0f, 1.0f, 0.0f, 1.0f);
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-}
-
-void keyboardFunc(unsigned char key, int x, int y) {
+void keyboardFn(unsigned char key, int x, int y) {
     switch (key) {
         case 's':
             toggleShowSpline();
@@ -263,7 +209,7 @@ void keyboardFunc(unsigned char key, int x, int y) {
             glutPostRedisplay();
             break;
         case 'k':
-            updateIterationsCount(iterationsCount + 1);
+            updateIterationsCount(iterationsCount + 2);
             glutPostRedisplay();
             break;
         case 'j':
@@ -278,24 +224,10 @@ void keyboardFunc(unsigned char key, int x, int y) {
         case 'q':
         case ESC:
             exit(0);
-            break;
     }
 }
 
 int main(int argc, char **argv) {
-    glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
-    glutInitWindowSize(1200, 800);
-    glutInitWindowPosition(100, 100);
-    glutCreateWindow(argv[0]);
-    initRendering();
-    initColors();
-
-    glutDisplayFunc(render);
-    glutReshapeFunc(resizeWindow);
-    glutKeyboardFunc(keyboardFunc);
-    glutMouseFunc(mouseFunc);
-    glutMainLoop();
-
+    render(argc, argv, "Casteljau", render, keyboardFn, mouseFn);
     return 0;
 }

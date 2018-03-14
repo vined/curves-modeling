@@ -37,11 +37,11 @@ CMakeFiles/
 cmake-build-debug/
 cmake_install.cmake
 Makefile
+*.cbp
 
 # Idea
 .idea/
 *.iml
 
 # Project
-opengl-examples/
-curves_modeling*
+casteljau

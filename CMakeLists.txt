@@ -15,6 +15,9 @@ endif (NOT GLUT_FOUND)
 
 link_libraries (${OPENGL_LIBRARIES} ${GLUT_LIBRARIES})
 
-add_executable(curves_modeling
-        src/Casteljau.cpp
-        src/Casteljau.h src/Bezier.cc src/Bezier.h)
+
+add_executable(casteljau src/Casteljau.cpp src/Casteljau.h
+        src/utils/Colors.cc src/utils/Colors.h src/utils/Renderer.cc src/utils/Renderer.h)
+
+add_executable(bezier src/Bezier.cc src/Bezier.h
+        src/utils/Colors.cc src/utils/Colors.h src/utils/Renderer.cc src/utils/Renderer.h)
