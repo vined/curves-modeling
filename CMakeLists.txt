@@ -17,7 +17,7 @@ link_libraries (${OPENGL_LIBRARIES} ${GLUT_LIBRARIES})
 
 
 add_executable(casteljau src/Casteljau.cpp src/Casteljau.h
-        src/utils/Colors.cc src/utils/Colors.h src/utils/Renderer.cc src/utils/Renderer.h)
+        src/utils/Colors.cc src/utils/Colors.h src/utils/Renderer.cc src/utils/Renderer.h src/utils/Points.cc src/utils/Points.h)
 
-add_executable(bezier src/Bezier.cc src/Bezier.h
-        src/utils/Colors.cc src/utils/Colors.h src/utils/Renderer.cc src/utils/Renderer.h)
+add_executable(approximatingSpline src/ApproxSpline.cc src/ApproxSpline.h
+        src/utils/Colors.cc src/utils/Colors.h src/utils/Renderer.cc src/utils/Renderer.h src/utils/Points.cc src/utils/Points.h)
