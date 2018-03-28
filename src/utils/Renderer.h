@@ -10,7 +10,8 @@ void render(
         const char *title,
         void (*renderFn)(),
         void (*keyboardFn)(unsigned char, int, int),
-        void (*mouseFn)(int, int, int, int)
+        void (*mouseFn)(int, int, int, int),
+        void (*motionFn)(int, int)
 );
 
 int getWindowHeight();

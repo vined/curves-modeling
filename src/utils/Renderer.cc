@@ -34,7 +34,8 @@ void render(
         const char *title,
         void (*renderFn)(),
         void (*keyboardFn)(unsigned char, int, int),
-        void (*mouseFn)(int, int, int, int)
+        void (*mouseFn)(int, int, int, int),
+        void (*motionFn)(int, int)
 ) {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
@@ -47,6 +48,7 @@ void render(
     glutReshapeFunc(resizeWindowFn);
     glutKeyboardFunc(keyboardFn);
     glutMouseFunc(mouseFn);
+    glutMotionFunc(motionFn);
     glutMainLoop();
 }
 

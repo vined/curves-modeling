@@ -30,6 +30,9 @@ int showWire = 1;
 int iterationsCount = IT_CNT;
 int drawOnlyLastIteration = 0;
 
+int dragging = 0;
+int draggingId = -1;
+
 int toggleValue(int val) {
     if (val == 0) {
         return 1;
@@ -69,12 +72,54 @@ void addNewPoint(double x, double y) {
     userPoints.push_back(p);
 }
 
-void mouseFn(int button, int state, int x, int y) {
-    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
-        double xPos = ((float) x) / ((float) (getWindowWidth() - 1));
-        double yPos = 1.0f - ((float) y) / ((float) (getWindowHeight() - 1));
+double getPointsDiff(Point p1, Point p2) {
+    return fabs(p1.x - p2.x) + fabs(p1.y - p2.y);
+}
 
-        addNewPoint(xPos, yPos);
+int getNearbyPoint(Point point, double epsilon) {
+    for (int i = 0; i < userPoints.size(); i++) {
+        Point p = userPoints[i];
+        if (getPointsDiff(point, p) < epsilon) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+Point getMousePosition(int x, int y) {
+
+    double xPos = ((float) x) / ((float) (getWindowWidth() - 1));
+    double yPos = 1.0f - ((float) y) / ((float) (getWindowHeight() - 1));
+
+    return {xPos, yPos};
+}
+
+void mouseMotionFn(int x, int y) {
+    if (dragging) {
+        userPoints[draggingId] = getMousePosition(x, y);
+        glutPostRedisplay();
+    }
+}
+
+void mouseFn(int button, int state, int x, int y) {
+
+    if (state == GLUT_UP) {
+        dragging = 0;
+        draggingId = -1;
+    }
+
+    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+
+        Point newPoint = getMousePosition(x, y);
+        int pointId = getNearbyPoint(newPoint, 0.01);
+
+        if (pointId >= 0) {
+            userPoints[pointId] = newPoint;
+            draggingId = pointId;
+            dragging = 1;
+        } else {
+            userPoints.push_back(newPoint);
+        }
         glutPostRedisplay();
     }
 }
@@ -186,7 +231,7 @@ void render() {
         drawLine(splinePoints, THICK_LINE, getDefaultSplineColor());
     }
 
-    drawPoints(userPoints, 6, getDefaultUserPointColor());
+    drawPoints(userPoints, 12, getDefaultUserPointColor());
 
     glFlush();
 }
@@ -234,7 +279,7 @@ void keyboardFn(unsigned char key, int x, int y) {
 }
 
 int main(int argc, char **argv) {
-    render(argc, argv, "Casteljau", render, keyboardFn, mouseFn);
+    render(argc, argv, "Casteljau", render, keyboardFn, mouseFn, mouseMotionFn);
     return 0;
 }
 
