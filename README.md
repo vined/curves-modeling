@@ -23,7 +23,7 @@
 `o` - toggles open/closed spline
 
 
-##De Casteljau
+## De Casteljau
 Draws a Bezier curve using De Casteljau algorithm of chosen degree
 
 ![Casteljau 2nd degree](images/Casteljau2deg.png?raw=true "Casteljau 2nd degree")
