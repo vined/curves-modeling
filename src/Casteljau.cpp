@@ -18,9 +18,6 @@
 const int ESC = 27;
 
 
-// TODO points dragging
-
-
 std::vector<Point> userPoints;
 
 int splineDegree = 2;
@@ -117,7 +114,7 @@ void mouseFn(int button, int state, int x, int y) {
             userPoints[pointId] = newPoint;
             draggingId = pointId;
             dragging = 1;
-        } else {
+        } else if (userPoints.size() < splineDegree + 1){
             userPoints.push_back(newPoint);
         }
         glutPostRedisplay();
@@ -231,13 +228,15 @@ void render() {
         drawLine(splinePoints, THICK_LINE, getDefaultSplineColor());
     }
 
-    drawPoints(userPoints, 12, getDefaultUserPointColor());
+    if (showWire) {
+        drawPoints(userPoints, 12, getDefaultUserPointColor());
+    }
 
     glFlush();
 }
 
 void keyboardFn(unsigned char key, int x, int y) {
-    if (key >= '2' && key <= '9') {
+    if (key >= '2' && key <= '3') {
         splineDegree = key - '0';
         return;
     }
