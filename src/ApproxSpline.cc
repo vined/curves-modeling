@@ -16,9 +16,8 @@
 #define MAX_IT_CNT 10
 
 const int ESC = 27;
-
-
-// TODO points dragging
+const int ENTER = 13;
+const int SPACE = 32;
 
 
 std::vector<Point> userPoints;
@@ -30,6 +29,8 @@ int showWire = 1;
 int iterationsCount = IT_CNT;
 int drawOnlyLastIteration = 0;
 int closedSpline = 1;
+
+int allowNewPoints = 1;
 
 int dragging = 0;
 int draggingId = -1;
@@ -117,7 +118,7 @@ void mouseFn(int button, int state, int x, int y) {
             userPoints[pointId] = newPoint;
             draggingId = pointId;
             dragging = 1;
-        } else {
+        } else if (allowNewPoints) {
             userPoints.push_back(newPoint);
         }
         glutPostRedisplay();
@@ -304,13 +305,16 @@ void render() {
     glClear(GL_COLOR_BUFFER_BIT);
 
     std::vector<Point> points = getUserPoints();
-    if (showWire) {
-        drawLine(points, THIN_LINE, getDefaultWireLineColor());
-    }
 
-    std::vector<Point> splinePoints = getSplinePoints(points);
-    if (showSpline) {
-        drawLine(splinePoints, THICK_LINE, getDefaultSplineColor());
+    if (!allowNewPoints) {
+        if (showWire) {
+            drawLine(points, THIN_LINE, getDefaultWireLineColor());
+        }
+
+        std::vector<Point> splinePoints = getSplinePoints(points);
+        if (showSpline) {
+            drawLine(splinePoints, THICK_LINE, getDefaultSplineColor());
+        }
     }
 
     drawPoints(points, 12, getDefaultUserPointColor());
@@ -356,6 +360,11 @@ void keyboardFn(unsigned char key, int x, int y) {
             break;
         case 'o':
             toggleClosedSpline();
+            glutPostRedisplay();
+            break;
+        case SPACE:
+        case ENTER:
+            allowNewPoints = 0;
             glutPostRedisplay();
             break;
         case 'x':
