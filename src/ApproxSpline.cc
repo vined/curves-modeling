@@ -210,17 +210,18 @@ std::vector<Point> getInnerPoints(std::vector<Point> initialPoints) {
     return splinePoints;
 }
 
-std::vector<Point> getApproximation3DegreePoints(std::vector<Point> userPoints) {
+std::vector<Point> getApproximation3DegreePoints(std::vector<Point> points) {
 
     std::vector<Point> result;
     Point firstPoint;
     Point lastPoint;
 
-    result.push_back(userPoints[0]);
+    result.push_back(points[0]);
 
-    for (int i = 0; i < userPoints.size() - 1; i++) {
-        Point p1 = userPoints[i];
-        Point p2 = userPoints[i + 1];
+
+    for (int i = 0; i < points.size() - 1; i++) {
+        Point p1 = points[i];
+        Point p2 = points[i + 1];
 
         firstPoint = getThirdPoint(p1, p2);
 
@@ -238,9 +239,12 @@ std::vector<Point> getApproximation3DegreePoints(std::vector<Point> userPoints) 
         lastPoint = getMidPoint(lastPoint, result[1]);
         result[0] = lastPoint;
         result.push_back(lastPoint);
+        return result;
+    } else {
+        std::vector<Point> tmp;
+        tmp.insert(tmp.end(), result.begin() + 3, result.end());
+        return tmp;
     }
-
-    return result;
 }
 
 std::vector<Point> getApproximation2DegreePoints(std::vector<Point> userPoints) {
@@ -261,18 +265,45 @@ std::vector<Point> getApproximation2DegreePoints(std::vector<Point> userPoints) 
     return result;
 }
 
-std::vector<Point> getSplinePoints(std::vector<Point> userPoints) {
+Point getPhantomPoint(Point pt1, Point pt2) {
+    return {2 * pt1.x - pt2.x, 2 * pt1.y - pt2.y};
+}
 
-    if (userPoints.size() < 3) {
+std::vector<Point> addPhantomPoints(std::vector<Point> points) {
+    std::vector<Point> newPts;
+
+    newPts.push_back(getPhantomPoint(points[0], points[1]));
+    if (splineDegree == 2) {
+        newPts.insert(newPts.end(), points.begin() + 1, points.end() - 1);
+    } else {
+        newPts.insert(newPts.end(), points.begin(), points.end());
+    }
+
+    long n = points.size() - 1;
+    newPts.push_back(getPhantomPoint(points[n], points[n - 1]));
+
+    return newPts;
+}
+
+std::vector<Point> getSplinePoints(std::vector<Point> points) {
+
+    if (points.size() < 3) {
         std::vector<Point> empty;
         return empty;
     }
 
+    std::vector<Point> pts;
+    if (closedSpline) {
+        pts = points;
+    } else {
+        pts = addPhantomPoints(points);
+    }
+
     std::vector<Point> splinePoints;
     if (splineDegree == 3) {
-        splinePoints = getApproximation3DegreePoints(userPoints);
+        splinePoints = getApproximation3DegreePoints(pts);
     } else {
-        splinePoints = getApproximation2DegreePoints(userPoints);
+        splinePoints = getApproximation2DegreePoints(pts);
     }
 
     for (int i = 0; i < iterationsCount; i++) {
@@ -290,23 +321,23 @@ std::vector<Point> getSplinePoints(std::vector<Point> userPoints) {
 
 std::vector<Point> getUserPoints() {
 
-    std::vector<Point> result = userPoints;
+    std::vector<Point> pts = userPoints;
 
     if (!userPoints.empty() && userPoints.size() >= 3) {
         if (closedSpline) {
-            result.push_back(userPoints[0]);
+            pts.push_back(userPoints[0]);
+            return pts;
         }
     }
 
-    return result;
+    return pts;
 };
 
 void render() {
     glClear(GL_COLOR_BUFFER_BIT);
 
-    std::vector<Point> points = getUserPoints();
-
     if (!allowNewPoints) {
+        std::vector<Point> points = getUserPoints();
         if (showWire) {
             drawLine(points, THIN_LINE, getDefaultWireLineColor());
         }
@@ -317,7 +348,9 @@ void render() {
         }
     }
 
-    drawPoints(points, 12, getDefaultUserPointColor());
+    if (allowNewPoints || showWire) {
+        drawPoints(userPoints, 12, getDefaultUserPointColor());
+    }
 
     glFlush();
 }
@@ -344,6 +377,7 @@ void keyboardFn(unsigned char key, int x, int y) {
             break;
         case 'c':
             clearPoints();
+            allowNewPoints = 1;
             glutPostRedisplay();
             break;
         case 'k':
