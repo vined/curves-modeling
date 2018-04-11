@@ -11,8 +11,10 @@ struct Color {
 
 struct Color getPointColor(int i);
 struct Color getLineColor(int i);
+struct Color getSplineColor(int i);
 
 struct Color getDefaultUserPointColor();
+struct Color getDefaultCollisionPointColor();
 struct Color getDefaultWireLineColor();
 struct Color getDefaultSplineColor();
 

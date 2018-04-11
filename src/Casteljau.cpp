@@ -17,7 +17,7 @@
 #define MAX_IT_CNT 10
 
 const int ESC = 27;
-
+const double EPSILON = 0.1;
 
 std::vector<std::vector<Point>> userPoints;
 
@@ -225,23 +225,145 @@ std::vector<Point> getSplinePoints(std::vector<Point> points) {
     return splinePoints;
 }
 
+std::pair<Point, Point> getCurveMaxArea(std::vector<Point> pts) {
+    double minX = pts[0].x;
+    double minY = pts[0].y;
+
+    double maxX = pts[0].x;
+    double maxY = pts[0].y;
+
+    for (Point p : pts) {
+        if (p.x > maxX) {
+            maxX = p.x;
+        } else if (p.x < minX) {
+            minX = p.x;
+        }
+
+        if (p.y > maxY) {
+            maxY = p.y;
+        } else if (p.y < minY) {
+            minY = p.y;
+        }
+    }
+
+    return {{minX, minY}, {maxX, maxY}};
+}
+
+int isLimit(std::pair<Point, Point> r) {
+    if ((r.second.x - r.first.x < EPSILON) || (r.second.y - r.first.y < EPSILON)) {
+        return 1;
+    }
+    return 0;
+}
+
+int isIn(double v, double from, double to) {
+
+    if (v >= from && v <= to) {
+        return 1;
+    }
+
+    return 0;
+}
+
+int isIntersecting(std::pair<Point, Point> r1, std::pair<Point, Point> r2) {
+
+    int isInX = isIn(r1.first.x, r2.first.x, r2.second.x) || isIn(r1.second.x, r2.first.x, r2.second.x);
+    int isInY = isIn(r1.first.y, r2.first.y, r2.second.y) || isIn(r1.second.y, r2.first.y, r2.second.y);
+
+    if (isInX && isInY) {
+        return 1;
+    }
+
+    return 0;
+}
+
+void drawRect(std::pair<Point, Point> r) {
+    std::vector<Point> rect;
+    rect.push_back({r.first.x, r.first.y});
+    rect.push_back({r.second.x, r.first.y});
+    rect.push_back({r.second.x, r.second.y});
+    rect.push_back({r.first.x, r.second.y});
+    rect.push_back({r.first.x, r.first.y});
+    drawLine(rect, THIN_LINE, getDefaultWireLineColor());
+}
+
+Point getIntersectionPoint(std::pair<Point, Point> r1, std::pair<Point, Point> r2) {
+    double xmax = r1.first.x;
+    double xmin = r1.first.x;
+
+    double ymax = r1.first.y;
+    double ymin = r1.first.y;
+
+    if (isIn(r1.first.x, r2.first.x, r2.second.x)) {
+        xmin = r1.first.x;
+    } else {
+        xmin = r2.first.x;
+    }
+
+    if (isIn(r1.first.x, r2.first.x, r2.second.x)) {
+        xmin = r1.first.x;
+    } else {
+        xmin = r2.first.x;
+    }
+
+    int isInY = isIn(r1.first.y, r2.first.y, r2.second.y) || isIn(r1.second.y, r2.first.y, r2.second.y);
+}
+
+std::vector<Point> getCurvesIntersections(std::vector<Point> pts1, std::vector<Point> pts2) {
+
+    std::vector<Point> intersections;
+
+    std::pair<Point, Point> r1 = getCurveMaxArea(pts1);
+    std::pair<Point, Point> r2 = getCurveMaxArea(pts2);
+    int intersects = isIntersecting(r1, r2);
+
+    if (intersects) {
+        drawRect(r1);
+        drawRect(r2);
+        if (!isLimit(r1) || !isLimit(r2)) {
+//            return getCurvesIntersections();
+        } else {
+            printf("Limit reached");
+//            intersections.push_back(getIntersectionPoint(r1, r2));
+        }
+    }
+
+    return intersections;
+}
+
 void render() {
     glClear(GL_COLOR_BUFFER_BIT);
 
-    for (std::vector<Point> curve : userPoints) {
+    for (int i = 0; i < userPoints.size(); i++) {
+        std::vector<Point> curve = userPoints[i];
         if (showWire) {
             drawLine(curve, THIN_LINE, getDefaultWireLineColor());
         }
 
         std::vector<Point> splinePoints = getSplinePoints(curve);
         if (showSpline) {
-            drawLine(splinePoints, THICK_LINE, getDefaultSplineColor());
+            drawLine(splinePoints, THICK_LINE, getSplineColor(i));
         }
 
         if (showWire) {
             drawPoints(curve, 12, getDefaultUserPointColor());
         }
     }
+
+    std::vector<Point> collisions;
+
+    for (int i = 0; i < userPoints.size(); i++) {
+        for (int j = i+1; j < userPoints.size(); j++) {
+
+            std::vector<Point> intersections = getCurvesIntersections(userPoints[i], userPoints[j]);
+
+            if (!intersections.empty()) {
+                collisions.insert(collisions.end(), intersections.begin(), intersections.end());
+            }
+        }
+    }
+
+    drawPoints(collisions, 10, getDefaultCollisionPointColor());
 
     glFlush();
 }
