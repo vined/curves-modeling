@@ -2,6 +2,7 @@
 #include <GL/glut.h>
 #include <stdio.h>
 #include <vector>
+#include <utility>
 #include <math.h>
 
 #include "Casteljau.h"
@@ -18,7 +19,7 @@
 const int ESC = 27;
 
 
-std::vector<Point> userPoints;
+std::vector<std::vector<Point>> userPoints;
 
 int splineDegree = 2;
 int showWorkingLines = 1;
@@ -28,7 +29,7 @@ int iterationsCount = IT_CNT;
 int drawOnlyLastIteration = 0;
 
 int dragging = 0;
-int draggingId = -1;
+std::pair<long, long> dragPoint = {-1, -1};
 
 int toggleValue(int val) {
     if (val == 0) {
@@ -64,23 +65,20 @@ void toggleDrawOnlyLastIteration() {
     drawOnlyLastIteration = toggleValue(drawOnlyLastIteration);
 }
 
-void addNewPoint(double x, double y) {
-    struct Point p = {x, y};
-    userPoints.push_back(p);
-}
-
 double getPointsDiff(Point p1, Point p2) {
     return fabs(p1.x - p2.x) + fabs(p1.y - p2.y);
 }
 
-int getNearbyPoint(Point point, double epsilon) {
+std::pair<long, long> getNearbyPoint(Point point, double epsilon) {
     for (int i = 0; i < userPoints.size(); i++) {
-        Point p = userPoints[i];
-        if (getPointsDiff(point, p) < epsilon) {
-            return i;
+        for (int j = 0; j < userPoints[i].size(); j++) {
+            Point p = userPoints[i][j];
+            if (getPointsDiff(point, p) < epsilon) {
+                return {i, j};
+            }
         }
     }
-    return -1;
+    return {-1, -1};
 }
 
 Point getMousePosition(int x, int y) {
@@ -93,7 +91,7 @@ Point getMousePosition(int x, int y) {
 
 void mouseMotionFn(int x, int y) {
     if (dragging) {
-        userPoints[draggingId] = getMousePosition(x, y);
+        userPoints[dragPoint.first][dragPoint.second] = getMousePosition(x, y);
         glutPostRedisplay();
     }
 }
@@ -102,20 +100,31 @@ void mouseFn(int button, int state, int x, int y) {
 
     if (state == GLUT_UP) {
         dragging = 0;
-        draggingId = -1;
+        dragPoint = {-1, -1};
     }
 
     if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
 
         Point newPoint = getMousePosition(x, y);
-        int pointId = getNearbyPoint(newPoint, 0.01);
+        std::pair<long, long> pt = getNearbyPoint(newPoint, 0.01);
 
-        if (pointId >= 0) {
-            userPoints[pointId] = newPoint;
-            draggingId = pointId;
+        if (pt.first >= 0) {
+
+            userPoints[pt.first][pt.second] = newPoint;
+            dragPoint = pt;
             dragging = 1;
-        } else if (userPoints.size() < splineDegree + 1){
-            userPoints.push_back(newPoint);
+
+        } else {
+
+            long last = userPoints.size() - 1;
+
+            if (last >= 0 && userPoints[last].size() < splineDegree + 1) {
+                userPoints[last].push_back(newPoint);
+            } else {
+                std::vector<Point> newCurve;
+                newCurve.push_back(newPoint);
+                userPoints.push_back(newCurve);
+            }
         }
         glutPostRedisplay();
     }
@@ -194,14 +203,14 @@ std::vector<Point> getInnerPoints(std::vector<Point> initialPoints) {
     return splinePoints;
 }
 
-std::vector<Point> getSplinePoints(std::vector<Point> userPoints) {
+std::vector<Point> getSplinePoints(std::vector<Point> points) {
 
-    if (userPoints.size() < splineDegree + 1) {
+    if (points.size() < splineDegree + 1) {
         std::vector<Point> empty;
         return empty;
     }
 
-    std::vector<Point> splinePoints = userPoints;
+    std::vector<Point> splinePoints = points;
 
     for (int i = 0; i < iterationsCount; i++) {
 
@@ -219,17 +228,19 @@ std::vector<Point> getSplinePoints(std::vector<Point> userPoints) {
 void render() {
     glClear(GL_COLOR_BUFFER_BIT);
 
-    if (showWire) {
-        drawLine(userPoints, THIN_LINE, getDefaultWireLineColor());
-    }
+    for (std::vector<Point> curve : userPoints) {
+        if (showWire) {
+            drawLine(curve, THIN_LINE, getDefaultWireLineColor());
+        }
 
-    std::vector<Point> splinePoints = getSplinePoints(userPoints);
-    if (showSpline) {
-        drawLine(splinePoints, THICK_LINE, getDefaultSplineColor());
-    }
+        std::vector<Point> splinePoints = getSplinePoints(curve);
+        if (showSpline) {
+            drawLine(splinePoints, THICK_LINE, getDefaultSplineColor());
+        }
 
-    if (showWire) {
-        drawPoints(userPoints, 12, getDefaultUserPointColor());
+        if (showWire) {
+            drawPoints(curve, 12, getDefaultUserPointColor());
+        }
     }
 
     glFlush();
@@ -238,6 +249,8 @@ void render() {
 void keyboardFn(unsigned char key, int x, int y) {
     if (key >= '2' && key <= '3') {
         splineDegree = key - '0';
+        clearPoints();
+        glutPostRedisplay();
         return;
     }
 
