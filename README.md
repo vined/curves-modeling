@@ -18,6 +18,8 @@
 
 `h` - toggles algorithm step lines
 
+`r` - toggles algorithm collisions detection rectangles
+
 `l` - draws only last approximating line
 
 `o` - toggles open/closed spline

@@ -17,14 +17,15 @@
 #define MAX_IT_CNT 10
 
 const int ESC = 27;
-const double EPSILON = 0.1;
+const double EPSILON = 0.0015;
 
 std::vector<std::vector<Point>> userPoints;
 
 int splineDegree = 2;
-int showWorkingLines = 1;
+int showWorkingLines = 0;
 int showSpline = 1;
 int showWire = 1;
+int showCollisionRects = 1;
 int iterationsCount = IT_CNT;
 int drawOnlyLastIteration = 0;
 
@@ -49,6 +50,10 @@ void toggleShowSpline() {
 
 void toggleShowWire() {
     showWire = toggleValue(showWire);
+}
+
+void toggleShowCollisionRects() {
+    showCollisionRects = toggleValue(showCollisionRects);
 }
 
 void clearPoints() {
@@ -106,7 +111,7 @@ void mouseFn(int button, int state, int x, int y) {
     if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
 
         Point newPoint = getMousePosition(x, y);
-        std::pair<long, long> pt = getNearbyPoint(newPoint, 0.01);
+        std::pair<long, long> pt = getNearbyPoint(newPoint, 0.02);
 
         if (pt.first >= 0) {
 
@@ -154,6 +159,10 @@ void drawPoints(std::vector<Point> pts, int pointSize, struct Color color) {
     glEnd();
 }
 
+Point getMidPoint(Point p1, Point p2) {
+    return {(p1.x + p2.x) / 2.0, (p1.y + p2.y) / 2.0};
+}
+
 std::vector<Point> getMidPoints(std::vector<Point> pts) {
     if (pts.size() == 1) {
         return pts;
@@ -161,11 +170,7 @@ std::vector<Point> getMidPoints(std::vector<Point> pts) {
 
     std::vector<Point> tmpPts;
     for (int i = 0; i < pts.size() - 1; i++) {
-        double x = (pts[i].x + pts[i + 1].x) / 2.0;
-        double y = (pts[i].y + pts[i + 1].y) / 2.0;
-
-        struct Point p = {x, y};
-        tmpPts.push_back(p);
+        tmpPts.push_back(getMidPoint(pts[i], pts[i + 1]));
     }
 
     std::vector<Point> midPoints = getMidPoints(tmpPts);
@@ -184,7 +189,7 @@ std::vector<Point> getInnerPoints(std::vector<Point> initialPoints) {
 
     std::vector<Point> splinePoints;
 
-    for (int i = 0; i < initialPoints.size() - splineDegree; i+=splineDegree) {
+    for (int i = 0; i < initialPoints.size() - splineDegree; i += splineDegree) {
         std::vector<Point> innerPoints;
 
         for (int j = 0; j <= splineDegree; j++) {
@@ -194,7 +199,7 @@ std::vector<Point> getInnerPoints(std::vector<Point> initialPoints) {
         innerPoints = getMidPoints(innerPoints);
 
         if (i > 0) {
-            splinePoints.insert(splinePoints.end(), innerPoints.begin()+1, innerPoints.end());
+            splinePoints.insert(splinePoints.end(), innerPoints.begin() + 1, innerPoints.end());
         } else {
             splinePoints.insert(splinePoints.end(), innerPoints.begin(), innerPoints.end());
         }
@@ -216,7 +221,7 @@ std::vector<Point> getSplinePoints(std::vector<Point> points) {
 
         splinePoints = getInnerPoints(splinePoints);
 
-        if (showWorkingLines && (!drawOnlyLastIteration || i == iterationsCount - 1) ) {
+        if (showWorkingLines && (!drawOnlyLastIteration || i == iterationsCount - 1)) {
             drawLine(splinePoints, THIN_LINE, getLineColor(i));
             drawPoints(splinePoints, 6, getPointColor(i));
         }
@@ -246,11 +251,12 @@ std::pair<Point, Point> getCurveMaxArea(std::vector<Point> pts) {
         }
     }
 
-    return {{minX, minY}, {maxX, maxY}};
+    return {{minX, minY},
+            {maxX, maxY}};
 }
 
 int isLimit(std::pair<Point, Point> r) {
-    if ((r.second.x - r.first.x < EPSILON) || (r.second.y - r.first.y < EPSILON)) {
+    if ((r.second.x - r.first.x < EPSILON) && (r.second.y - r.first.y < EPSILON)) {
         return 1;
     }
     return 0;
@@ -267,8 +273,11 @@ int isIn(double v, double from, double to) {
 
 int isIntersecting(std::pair<Point, Point> r1, std::pair<Point, Point> r2) {
 
-    int isInX = isIn(r1.first.x, r2.first.x, r2.second.x) || isIn(r1.second.x, r2.first.x, r2.second.x);
-    int isInY = isIn(r1.first.y, r2.first.y, r2.second.y) || isIn(r1.second.y, r2.first.y, r2.second.y);
+    int isInX = isIn(r1.first.x, r2.first.x, r2.second.x) || isIn(r1.second.x, r2.first.x, r2.second.x)
+                || isIn(r2.first.x, r1.first.x, r1.second.x) || isIn(r2.second.x, r1.first.x, r1.second.x);
+
+    int isInY = isIn(r1.first.y, r2.first.y, r2.second.y) || isIn(r1.second.y, r2.first.y, r2.second.y)
+                || isIn(r2.first.y, r1.first.y, r1.second.y) || isIn(r2.second.y, r1.first.y, r1.second.y);
 
     if (isInX && isInY) {
         return 1;
@@ -277,36 +286,79 @@ int isIntersecting(std::pair<Point, Point> r1, std::pair<Point, Point> r2) {
     return 0;
 }
 
-void drawRect(std::pair<Point, Point> r) {
+void drawRect(std::pair<Point, Point> r, Color color) {
     std::vector<Point> rect;
     rect.push_back({r.first.x, r.first.y});
     rect.push_back({r.second.x, r.first.y});
     rect.push_back({r.second.x, r.second.y});
     rect.push_back({r.first.x, r.second.y});
     rect.push_back({r.first.x, r.first.y});
-    drawLine(rect, THIN_LINE, getDefaultWireLineColor());
+    drawLine(rect, THIN_LINE, color);
 }
 
-Point getIntersectionPoint(std::pair<Point, Point> r1, std::pair<Point, Point> r2) {
-    double xmax = r1.first.x;
-    double xmin = r1.first.x;
+std::pair<Point, Point> getIntersectionRect(std::pair<Point, Point> r1, std::pair<Point, Point> r2) {
+    double xmin;
+    double ymin;
 
-    double ymax = r1.first.y;
-    double ymin = r1.first.y;
+    double xmax;
+    double ymax;
 
+    // Get min coordinate
     if (isIn(r1.first.x, r2.first.x, r2.second.x)) {
         xmin = r1.first.x;
     } else {
         xmin = r2.first.x;
     }
 
-    if (isIn(r1.first.x, r2.first.x, r2.second.x)) {
-        xmin = r1.first.x;
+    if (isIn(r1.first.y, r2.first.y, r2.second.y)) {
+        ymin = r1.first.y;
     } else {
-        xmin = r2.first.x;
+        ymin = r2.first.y;
     }
 
-    int isInY = isIn(r1.first.y, r2.first.y, r2.second.y) || isIn(r1.second.y, r2.first.y, r2.second.y);
+    // Get max coordinate
+    if (isIn(r1.second.x, r2.first.x, r2.second.x)) {
+        xmax = r1.second.x;
+    } else {
+        xmax = r2.second.x;
+    }
+
+    if (isIn(r1.second.y, r2.first.y, r2.second.y)) {
+        ymax = r1.second.y;
+    } else {
+        ymax = r2.second.y;
+    }
+
+    return {{xmin, ymin}, {xmax, ymax}};
+}
+
+Point getRectCenter(std::pair<Point, Point> r) {
+    return getMidPoint(r.first, r.second);
+}
+
+Point getRectIntersectionMidPoint(std::pair<Point, Point> r1, std::pair<Point, Point> r2) {
+    std::pair<Point, Point> intersectionRect = getIntersectionRect(r1, r2);
+    return getRectCenter(intersectionRect);
+}
+
+
+std::vector<std::vector<Point>> splitToSubCurves(std::vector<Point> pts) {
+
+    std::vector<std::vector<Point>> subCurves;
+    std::vector<Point> curvePoints = getInnerPoints(pts);
+
+    for (int i = 0; i < curvePoints.size() - splineDegree; i += splineDegree) {
+
+        std::vector<Point> subCurve;
+
+        for (int j = 0; j <= splineDegree; j++) {
+            subCurve.push_back(curvePoints[i + j]);
+        }
+
+        subCurves.push_back(subCurve);
+    }
+
+    return subCurves;
 }
 
 std::vector<Point> getCurvesIntersections(std::vector<Point> pts1, std::vector<Point> pts2) {
@@ -318,13 +370,30 @@ std::vector<Point> getCurvesIntersections(std::vector<Point> pts1, std::vector<P
     int intersects = isIntersecting(r1, r2);
 
     if (intersects) {
-        drawRect(r1);
-        drawRect(r2);
+
+        if (showCollisionRects) {
+            drawRect(r1, getDefaultWireLineColor());
+            drawRect(r2, getDefaultWireLineColor());
+        }
+
         if (!isLimit(r1) || !isLimit(r2)) {
-//            return getCurvesIntersections();
+
+            std::vector<std::vector<Point>> curves1 = splitToSubCurves(pts1);
+            std::vector<std::vector<Point>> curves2 = splitToSubCurves(pts2);
+
+            for (int i = 0; i < curves1.size(); i++) {
+                for (int j = 0; j < curves2.size(); j++) {
+
+                    std::vector<Point> newIntersections = getCurvesIntersections(curves1[i], curves2[j]);
+
+                    if (!newIntersections.empty()) {
+                        intersections.insert(intersections.end(), newIntersections.begin(), newIntersections.end());
+                    }
+                }
+            }
         } else {
-            printf("Limit reached");
-//            intersections.push_back(getIntersectionPoint(r1, r2));
+            printf("Limit reached!\n");
+            intersections.push_back(getRectIntersectionMidPoint(r1, r2));
         }
     }
 
@@ -352,18 +421,20 @@ void render() {
 
     std::vector<Point> collisions;
 
-    for (int i = 0; i < userPoints.size(); i++) {
-        for (int j = i+1; j < userPoints.size(); j++) {
+    if (userPoints.size() % splineDegree == 0) {
+        for (int i = 0; i < userPoints.size(); i++) {
+            for (int j = i + 1; j < userPoints.size(); j++) {
 
-            std::vector<Point> intersections = getCurvesIntersections(userPoints[i], userPoints[j]);
+                std::vector<Point> intersections = getCurvesIntersections(userPoints[i], userPoints[j]);
 
-            if (!intersections.empty()) {
-                collisions.insert(collisions.end(), intersections.begin(), intersections.end());
+                if (!intersections.empty()) {
+                    collisions.insert(collisions.end(), intersections.begin(), intersections.end());
+                }
             }
         }
     }
 
-    drawPoints(collisions, 10, getDefaultCollisionPointColor());
+    drawPoints(collisions, 14, getDefaultCollisionPointColor());
 
     glFlush();
 }
@@ -383,6 +454,10 @@ void keyboardFn(unsigned char key, int x, int y) {
             break;
         case 'h':
             toggleShowWorkingLines();
+            glutPostRedisplay();
+            break;
+        case 'r':
+            toggleShowCollisionRects();
             glutPostRedisplay();
             break;
         case 'w':

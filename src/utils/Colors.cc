@@ -6,9 +6,9 @@
 #define maxColors 5
 
 struct Color USER_POINT_COLOR = {0.0f, 0.0f, 0.0f};
-struct Color COLLISION_POINT_COLOR = {0.5f, 0.5f, 0.5f};
+struct Color COLLISION_POINT_COLOR = {1.0f, 0.1f, 0.1f};
 struct Color WIRE_LINE_COLOR = {0.0f, 0.0f, 0.8f};
-struct Color DEFAULT_SPLINE_COLOR = {1.0f, 0.0f, 0.8f};
+struct Color DEFAULT_SPLINE_COLOR = {1.0f, 0.5f, 0.8f};
 
 struct Color pointsColors[maxColors] = {
         {0.5f, 0.8f, 0.2f},
