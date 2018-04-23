@@ -421,10 +421,10 @@ void render() {
 
     std::vector<Point> collisions;
 
-    if (userPoints.size() % splineDegree == 0) {
-        for (int i = 0; i < userPoints.size(); i++) {
-            for (int j = i + 1; j < userPoints.size(); j++) {
+    for (int i = 0; i < userPoints.size(); i++) {
+        for (int j = i + 1; j < userPoints.size(); j++) {
 
+            if (userPoints[j].size() > splineDegree) {
                 std::vector<Point> intersections = getCurvesIntersections(userPoints[i], userPoints[j]);
 
                 if (!intersections.empty()) {
