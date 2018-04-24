@@ -153,8 +153,8 @@ void drawPoints(std::vector<Point> pts, int pointSize, struct Color color) {
     glColor3f(color.r, color.g, color.b);
 
     glBegin(GL_POINTS);
-    for (int i = 0; i < pts.size(); i++) {
-        glVertex2f(pts[i].x, pts[i].y);
+    for (Point p : pts) {
+        glVertex2f(p.x, p.y);
     }
     glEnd();
 }
@@ -400,6 +400,53 @@ std::vector<Point> getCurvesIntersections(std::vector<Point> pts1, std::vector<P
     return intersections;
 }
 
+void changeSplineDegree(int oldDegree, int newDegree) {
+    std::vector<std::vector<Point>> newUserPoints;
+
+    for (std::vector<Point> points : userPoints) {
+        if (points.size() == oldDegree+1) {
+            if (newDegree > oldDegree) {
+
+                std::vector<Point> newPoints;
+                newPoints.push_back(points[0]);
+
+                for (int i = 1; i < points.size(); i++) {
+                    double degree = ((double) i) / newDegree;
+                    double x = degree * points[i - 1].x + (1 - degree) * points[i].x;
+                    double y = degree * points[i - 1].y + (1 - degree) * points[i].y;
+
+                    newPoints.push_back({x, y});
+                }
+
+                newPoints.push_back(points[points.size() - 1]);
+                newUserPoints.push_back(newPoints);
+            } else {
+
+                std::vector<Point> newPoints;
+                Point prev = points[0];
+                newPoints.push_back(prev);
+
+                for (int i = 1; i < points.size() - 2; i++) {
+                    double degree = ((double) i) / oldDegree;
+                    double x = (points[i].x - degree * prev.x) / (1 - degree);
+                    double y = (points[i].y - degree * prev.y) / (1 - degree);
+
+                    prev = {x, y};
+                    newPoints.push_back(prev);
+                }
+
+                newPoints.push_back(points[points.size() - 1]);
+                newUserPoints.push_back(newPoints);
+            }
+        } else {
+            newUserPoints.push_back(points);
+        }
+    }
+
+    userPoints.clear();
+    userPoints.insert(userPoints.begin(), newUserPoints.begin(), newUserPoints.end());
+}
+
 void render() {
     glClear(GL_COLOR_BUFFER_BIT);
 
@@ -441,8 +488,12 @@ void render() {
 
 void keyboardFn(unsigned char key, int x, int y) {
     if (key >= '2' && key <= '3') {
+        int oldDegree = splineDegree;
         splineDegree = key - '0';
-        clearPoints();
+
+        if (oldDegree != splineDegree) {
+            changeSplineDegree(oldDegree, splineDegree);
+        }
         glutPostRedisplay();
         return;
     }
