@@ -28,6 +28,9 @@
 ## De Casteljau
 Draws a Bezier curve using De Casteljau algorithm of chosen degree
 
+### Additional hot-keys
+`i` and `o` - changes spline degree to demostrate spline degree lifting
+
 ![Casteljau 2nd degree](images/Casteljau2deg.png?raw=true "Casteljau 2nd degree")
 ![Casteljau 3rd degree](images/Casteljau3deg.png?raw=true "Casteljau 3rd degree")
 ![Casteljau 7th degree](images/Casteljau7deg.png?raw=true "Casteljau 7th degree")

@@ -486,19 +486,32 @@ void render() {
     glFlush();
 }
 
-void keyboardFn(unsigned char key, int x, int y) {
-    if (key >= '2' && key <= '3') {
+void updateSplineDegree(int newDegree) {
+    if (newDegree >= 2) {
         int oldDegree = splineDegree;
-        splineDegree = key - '0';
+        splineDegree = newDegree;
 
         if (oldDegree != splineDegree) {
             changeSplineDegree(oldDegree, splineDegree);
         }
+    }
+}
+void keyboardFn(unsigned char key, int x, int y) {
+    if (key >= '2' && key <= '3') {
+        updateSplineDegree(key - '0');
         glutPostRedisplay();
         return;
     }
 
     switch (key) {
+        case 'i':
+            updateSplineDegree(splineDegree - 1);
+            glutPostRedisplay();
+            break;
+        case 'o':
+            updateSplineDegree(splineDegree + 1);
+            glutPostRedisplay();
+            break;
         case 's':
             toggleShowSpline();
             glutPostRedisplay();
