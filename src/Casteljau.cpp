@@ -6,9 +6,10 @@
 #include <math.h>
 
 #include "Casteljau.h"
+#include "utils/Colors.h"
 #include "utils/Points.h"
 #include "utils/Renderer.h"
-#include "utils/Colors.h"
+#include "utils/Draw.h"
 
 
 #define THICK_LINE 3
@@ -133,30 +134,6 @@ void mouseFn(int button, int state, int x, int y) {
         }
         glutPostRedisplay();
     }
-}
-
-void drawLine(std::vector<Point> pts, int width, struct Color color) {
-    if (pts.size() > 1) {
-        glLineWidth(width);
-        glColor3f(color.r, color.g, color.b);
-
-        glBegin(GL_LINE_STRIP);
-        for (int i = 0; i < pts.size(); i++) {
-            glVertex2f(pts[i].x, pts[i].y);
-        }
-        glEnd();
-    }
-}
-
-void drawPoints(std::vector<Point> pts, int pointSize, struct Color color) {
-    glPointSize(pointSize);
-    glColor3f(color.r, color.g, color.b);
-
-    glBegin(GL_POINTS);
-    for (Point p : pts) {
-        glVertex2f(p.x, p.y);
-    }
-    glEnd();
 }
 
 Point getMidPoint(Point p1, Point p2) {
@@ -286,16 +263,6 @@ int isIntersecting(std::pair<Point, Point> r1, std::pair<Point, Point> r2) {
     return 0;
 }
 
-void drawRect(std::pair<Point, Point> r, Color color) {
-    std::vector<Point> rect;
-    rect.push_back({r.first.x, r.first.y});
-    rect.push_back({r.second.x, r.first.y});
-    rect.push_back({r.second.x, r.second.y});
-    rect.push_back({r.first.x, r.second.y});
-    rect.push_back({r.first.x, r.first.y});
-    drawLine(rect, THIN_LINE, color);
-}
-
 std::pair<Point, Point> getIntersectionRect(std::pair<Point, Point> r1, std::pair<Point, Point> r2) {
     double xmin;
     double ymin;
@@ -372,8 +339,8 @@ std::vector<Point> getCurvesIntersections(std::vector<Point> pts1, std::vector<P
     if (intersects) {
 
         if (showCollisionRects) {
-            drawRect(r1, getDefaultWireLineColor());
-            drawRect(r2, getDefaultWireLineColor());
+            drawRect(r1, THIN_LINE, getDefaultWireLineColor());
+            drawRect(r2, THIN_LINE, getDefaultWireLineColor());
         }
 
         if (!isLimit(r1) || !isLimit(r2)) {
@@ -555,4 +522,3 @@ int main(int argc, char **argv) {
     render(argc, argv, "Casteljau", render, keyboardFn, mouseFn, mouseMotionFn);
     return 0;
 }
-

@@ -4,11 +4,12 @@
 #include <vector>
 #include <math.h>
 
-#include "ApproxSpline.h"
+#include "InterpolatingSpline.h"
 #include "utils/Colors.h"
 #include "utils/Points.h"
 #include "utils/Renderer.h"
 #include "utils/Draw.h"
+
 
 
 #define THICK_LINE 3
@@ -296,14 +297,58 @@ std::vector<Point> getSplinePoints(std::vector<Point> points) {
     return splinePoints;
 }
 
+std::vector<Point> getInterpolatingSplineWorkPoints(Point p1, Point p2, Point p1d, Point p2d) {
+
+    std::vector<Point> pts;
+    pts.push_back(p1);
+    pts.push_back({p1.x + (1/3) * p1d.x, p1.y + (1/3) * p1d.y});
+    pts.push_back({p2.y - (1/3) * p2d.x, p1.y - (1/3) * p2d.y});
+    return pts;
+}
+
+Point getDerivative(Point pPrev, Point pNext) {
+    return {
+            (1/2) * (pPrev.x, pNext.x),
+            (1/2) * (pPrev.y, pNext.y),
+    };
+}
+
 std::vector<Point> getUserPoints() {
 
     std::vector<Point> pts = userPoints;
 
     if (!userPoints.empty() && userPoints.size() >= 3) {
         if (closedSpline) {
-            pts.push_back(userPoints[0]);
-            return pts;
+            std::vector<Point> newPoints;
+            long n = pts.size() - 1;
+            for (int i = 0; i <= n; i++) {
+                Point p1, p1d;
+                Point p2, p2d;
+
+                p1 = pts[i];
+                if (i == n) {
+                    p2 = pts[0];
+                } else {
+                    p2 = pts[i+1];
+                }
+
+                if (i == 0) {
+                    p1d = getDerivative(pts[n], p2);
+                } else {
+                    p1d = getDerivative(pts[i-1], p2);
+                }
+
+                if (i >= (n-1)) {
+                    p2d = getDerivative(p1, pts[i-(n-1)]);
+                } else {
+                    p2d = getDerivative(p1, pts[i+2]);
+                };
+
+                std::vector<Point> workPoints = getInterpolatingSplineWorkPoints(p1, p2, p1d, p2d);
+                newPoints.insert(newPoints.end(), workPoints.begin(), workPoints.end());
+            }
+            newPoints.push_back(userPoints[0]);
+            return newPoints;
         }
     }
 
@@ -386,6 +431,6 @@ void keyboardFn(unsigned char key, int x, int y) {
 }
 
 int main(int argc, char **argv) {
-    render(argc, argv, "Approximating spline", render, keyboardFn, mouseFn, mouseMotionFn);
+    render(argc, argv, "Interpolating spline", render, keyboardFn, mouseFn, mouseMotionFn);
     return 0;
 }

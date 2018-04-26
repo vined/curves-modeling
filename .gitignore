@@ -46,3 +46,4 @@ Makefile
 # Project
 casteljau
 approximatingSpline
+interpolatingSpline
