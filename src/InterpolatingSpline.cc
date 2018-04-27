@@ -24,8 +24,9 @@ const int SPACE = 32;
 
 std::vector<Point> userPoints;
 
-int splineDegree = 2;
+int splineDegree = 3;
 int showWorkingLines = 1;
+int showInterpolationLines = 1;
 int showSpline = 1;
 int showWire = 1;
 int iterationsCount = IT_CNT;
@@ -47,6 +48,10 @@ int toggleValue(int val) {
 
 void toggleShowWorkingLines() {
     showWorkingLines = toggleValue(showWorkingLines);
+}
+
+void toggleShowInterpolationLines() {
+    showInterpolationLines = toggleValue(showInterpolationLines);
 }
 
 void toggleShowSpline() {
@@ -270,19 +275,20 @@ std::vector<Point> getSplinePoints(std::vector<Point> points) {
         return empty;
     }
 
-    std::vector<Point> pts;
-    if (closedSpline) {
-        pts = points;
-    } else {
-        pts = addPhantomPoints(points);
-    }
-
-    std::vector<Point> splinePoints;
-    if (splineDegree == 3) {
-        splinePoints = getApproximation3DegreePoints(pts);
-    } else {
-        splinePoints = getApproximation2DegreePoints(pts);
-    }
+//    std::vector<Point> pts;
+//    if (closedSpline) {
+//        pts = points;
+//    } else {
+//        pts = addPhantomPoints(points);
+//    }
+//
+//    std::vector<Point> splinePoints;
+//    if (splineDegree == 3) {
+//        splinePoints = getApproximation3DegreePoints(pts);
+//    } else {
+//        splinePoints = getApproximation2DegreePoints(pts);
+//    }
+    std::vector<Point> splinePoints = points;
 
     for (int i = 0; i < iterationsCount; i++) {
 
@@ -301,31 +307,30 @@ std::vector<Point> getInterpolatingSplineWorkPoints(Point p1, Point p2, Point p1
 
     std::vector<Point> pts;
     pts.push_back(p1);
-    pts.push_back({p1.x + (1/3) * p1d.x, p1.y + (1/3) * p1d.y});
-    pts.push_back({p2.y - (1/3) * p2d.x, p1.y - (1/3) * p2d.y});
+    pts.push_back({p1.x + p1d.x / 3.0, p1.y + p1d.y / 3.0});
+    pts.push_back({p2.x - p2d.x / 3.0, p2.y - p2d.y / 3.0});
     return pts;
 }
 
 Point getDerivative(Point pPrev, Point pNext) {
     return {
-            (1/2) * (pPrev.x, pNext.x),
-            (1/2) * (pPrev.y, pNext.y),
+            (pNext.x - pPrev.x) / 2.0,
+            (pNext.y - pPrev.y) / 2.0,
     };
 }
 
-std::vector<Point> getUserPoints() {
-
-    std::vector<Point> pts = userPoints;
+std::vector<Point> getInterpolationPoints(std::vector<Point> pts) {
 
     if (!userPoints.empty() && userPoints.size() >= 3) {
         if (closedSpline) {
             std::vector<Point> newPoints;
             long n = pts.size() - 1;
             for (int i = 0; i <= n; i++) {
-                Point p1, p1d;
-                Point p2, p2d;
+                Point p1 = pts[i];
+                Point p1d;
+                Point p2;
+                Point p2d;
 
-                p1 = pts[i];
                 if (i == n) {
                     p2 = pts[0];
                 } else {
@@ -355,15 +360,29 @@ std::vector<Point> getUserPoints() {
     return pts;
 };
 
+std::vector<Point> getWirePoints() {
+    std::vector<Point> pts = userPoints;
+    if (!userPoints.empty() && userPoints.size() >= 3) {
+        if (closedSpline) {
+            pts.push_back(userPoints[0]);
+        }
+    }
+    return pts;
+};
+
 void render() {
     glClear(GL_COLOR_BUFFER_BIT);
 
     if (!allowNewPoints) {
-        std::vector<Point> points = getUserPoints();
         if (showWire) {
-            drawLine(points, THIN_LINE, getDefaultWireLineColor());
+            drawLine(getWirePoints(), THIN_LINE, getDefaultWireLineColor());
         }
 
+        std::vector<Point> points = getInterpolationPoints(userPoints);
+        if (showInterpolationLines) {
+            drawLine(points, THIN_LINE, {0.5f, 0.8f, 0.2f});
+            drawPoints(points, 6, {0.5f, 0.1f, 0.9f});
+        }
         std::vector<Point> splinePoints = getSplinePoints(points);
         if (showSpline) {
             drawLine(splinePoints, THICK_LINE, getDefaultSplineColor());
@@ -385,6 +404,10 @@ void keyboardFn(unsigned char key, int x, int y) {
     }
 
     switch (key) {
+        case 'i':
+            toggleShowInterpolationLines();
+            glutPostRedisplay();
+            break;
         case 's':
             toggleShowSpline();
             glutPostRedisplay();

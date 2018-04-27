@@ -3,6 +3,15 @@
 
 #include "Draw.h"
 
+void drawPoint(Point p, int pointSize, struct Color color) {
+    glPointSize(pointSize);
+    glColor3f(color.r, color.g, color.b);
+
+    glBegin(GL_POINTS);
+    glVertex2f(p.x, p.y);
+    glEnd();
+}
+
 void drawPoints(std::vector<Point> pts, int pointSize, struct Color color) {
     glPointSize(pointSize);
     glColor3f(color.r, color.g, color.b);
