@@ -9,7 +9,7 @@
 #include "utils/Points.h"
 #include "utils/Renderer.h"
 #include "utils/Draw.h"
-
+#include "utils/SplineUtils.h"
 
 
 #define THICK_LINE 3
@@ -25,13 +25,13 @@ const int SPACE = 32;
 std::vector<Point> userPoints;
 
 int splineDegree = 3;
-int showWorkingLines = 1;
+int showWorkingLines = 0;
 int showInterpolationLines = 1;
 int showSpline = 1;
 int showWire = 1;
 int iterationsCount = IT_CNT;
 int drawOnlyLastIteration = 0;
-int closedSpline = 1;
+int closedSpline = 0;
 
 int allowNewPoints = 1;
 
@@ -322,39 +322,73 @@ Point getDerivative(Point pPrev, Point pNext) {
 std::vector<Point> getInterpolationPoints(std::vector<Point> pts) {
 
     if (!userPoints.empty() && userPoints.size() >= 3) {
-        if (closedSpline) {
-            std::vector<Point> newPoints;
-            long n = pts.size() - 1;
-            for (int i = 0; i <= n; i++) {
-                Point p1 = pts[i];
-                Point p1d;
-                Point p2;
-                Point p2d;
+        std::vector<Point> newPoints;
+        int i = 0;
+        long n = pts.size() - 1;
+        long l = n;
 
-                if (i == n) {
-                    p2 = pts[0];
-                } else {
-                    p2 = pts[i+1];
-                }
+        if (!closedSpline) {
+            i++;
+            l--;l--;
+            Point p0 = pts[0];
+            Point p1 = pts[1];
+            Point p1d = getDerivative(p0, pts[2]);
 
-                if (i == 0) {
-                    p1d = getDerivative(pts[n], p2);
-                } else {
-                    p1d = getDerivative(pts[i-1], p2);
-                }
+            std::vector<Point> start;
 
-                if (i >= (n-1)) {
-                    p2d = getDerivative(p1, pts[i-(n-1)]);
-                } else {
-                    p2d = getDerivative(p1, pts[i+2]);
-                };
+            start.push_back(p0);
+            start.push_back({p1.x - 0.5 * p1d.x, p1.y - 0.5 * p1d.y});
+            start.push_back(p1);
 
-                std::vector<Point> workPoints = getInterpolatingSplineWorkPoints(p1, p2, p1d, p2d);
-                newPoints.insert(newPoints.end(), workPoints.begin(), workPoints.end());
-            }
-            newPoints.push_back(userPoints[0]);
-            return newPoints;
+            std::vector<Point> updated = changeSplineDegree(2, 3, start);
+            newPoints.insert(newPoints.end(), updated.begin(), updated.end() - 1);
         }
+
+        for (; i <= l; i++) {
+            Point p1 = pts[i];
+            Point p1d;
+            Point p2;
+            Point p2d;
+
+            if (i == n) {
+                p2 = pts[0];
+            } else {
+                p2 = pts[i + 1];
+            }
+
+            if (i == 0) {
+                p1d = getDerivative(pts[n], p2);
+            } else {
+                p1d = getDerivative(pts[i - 1], p2);
+            }
+
+            if (i >= (n - 1)) {
+                p2d = getDerivative(p1, pts[i - (n - 1)]);
+            } else {
+                p2d = getDerivative(p1, pts[i + 2]);
+            };
+
+            std::vector<Point> workPoints = getInterpolatingSplineWorkPoints(p1, p2, p1d, p2d);
+            newPoints.insert(newPoints.end(), workPoints.begin(), workPoints.end());
+        }
+
+        if (closedSpline) {
+            newPoints.push_back(userPoints[0]);
+        } else {
+            Point p0 = pts[n];
+            Point p1 = pts[n-1];
+            Point p1d = getDerivative(p0, pts[n-2]);
+
+            std::vector<Point> end;
+
+            end.push_back(p1);
+            end.push_back({p1.x - 0.5 * p1d.x, p1.y - 0.5 * p1d.y});
+            end.push_back(p0);
+
+            std::vector<Point> updated = changeSplineDegree(2, 3, end);
+            newPoints.insert(newPoints.end(), updated.begin(), updated.end());
+        }
+        return newPoints;
     }
 
     return pts;
@@ -362,10 +396,8 @@ std::vector<Point> getInterpolationPoints(std::vector<Point> pts) {
 
 std::vector<Point> getWirePoints() {
     std::vector<Point> pts = userPoints;
-    if (!userPoints.empty() && userPoints.size() >= 3) {
-        if (closedSpline) {
-            pts.push_back(userPoints[0]);
-        }
+    if (closedSpline) {
+        pts.push_back(userPoints[0]);
     }
     return pts;
 };

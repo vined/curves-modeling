@@ -10,6 +10,7 @@
 #include "utils/Points.h"
 #include "utils/Renderer.h"
 #include "utils/Draw.h"
+#include "utils/SplineUtils.h"
 
 
 #define THICK_LINE 3
@@ -367,47 +368,12 @@ std::vector<Point> getCurvesIntersections(std::vector<Point> pts1, std::vector<P
     return intersections;
 }
 
-void changeSplineDegree(int oldDegree, int newDegree) {
+void updateSplineDegree(int oldDegree, int newDegree) {
     std::vector<std::vector<Point>> newUserPoints;
 
     for (std::vector<Point> points : userPoints) {
-        if (points.size() == oldDegree+1) {
-            if (newDegree > oldDegree) {
-
-                std::vector<Point> newPoints;
-                newPoints.push_back(points[0]);
-
-                for (int i = 1; i < points.size(); i++) {
-                    double degree = ((double) i) / newDegree;
-                    double x = degree * points[i - 1].x + (1 - degree) * points[i].x;
-                    double y = degree * points[i - 1].y + (1 - degree) * points[i].y;
-
-                    newPoints.push_back({x, y});
-                }
-
-                newPoints.push_back(points[points.size() - 1]);
-                newUserPoints.push_back(newPoints);
-            } else {
-
-                std::vector<Point> newPoints;
-                Point prev = points[0];
-                newPoints.push_back(prev);
-
-                for (int i = 1; i < points.size() - 2; i++) {
-                    double degree = ((double) i) / oldDegree;
-                    double x = (points[i].x - degree * prev.x) / (1 - degree);
-                    double y = (points[i].y - degree * prev.y) / (1 - degree);
-
-                    prev = {x, y};
-                    newPoints.push_back(prev);
-                }
-
-                newPoints.push_back(points[points.size() - 1]);
-                newUserPoints.push_back(newPoints);
-            }
-        } else {
-            newUserPoints.push_back(points);
-        }
+        std::vector<Point> newPoints = changeSplineDegree(oldDegree, newDegree, points);
+        newUserPoints.push_back(newPoints);
     }
 
     userPoints.clear();
@@ -459,7 +425,7 @@ void updateSplineDegree(int newDegree) {
         splineDegree = newDegree;
 
         if (oldDegree != splineDegree) {
-            changeSplineDegree(oldDegree, splineDegree);
+            updateSplineDegree(oldDegree, splineDegree);
         }
     }
 }
