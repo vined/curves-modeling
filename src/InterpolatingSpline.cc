@@ -22,6 +22,7 @@ const int ESC = 27;
 const int ENTER = 13;
 const int SPACE = 32;
 
+const double alpha = 0.5;
 
 std::vector<Point> userPoints;
 
@@ -214,11 +215,15 @@ std::vector<Point> getSplinePoints(std::vector<Point> points) {
     return splinePoints;
 }
 
+double getDelta(Point p1, Point p2) {
+    return pow(sqrt(pow(p1.x - p2.x, 2) + pow(p1.y - p2.y, 2)), alpha);
+}
+
 std::vector<Point> getInterpolatingSplineWorkPoints(Point p1, Point p2, Point p1d, Point p2d) {
 
     std::vector<Point> pts;
     if (useVariedIntervals) {
-        double d = sqrt(pow(p1.x - p2.x, 2) + pow(p1.y - p2.y, 2));
+        double d = getDelta(p1, p2);
         pts.push_back(p1);
         pts.push_back({p1.x + p1d.x * d / 3.0, p1.y + p1d.y * d / 3.0});
         pts.push_back({p2.x - p2d.x * d / 3.0, p2.y - p2d.y * d / 3.0});
@@ -232,8 +237,8 @@ std::vector<Point> getInterpolatingSplineWorkPoints(Point p1, Point p2, Point p1
 
 Point getDerivative(Point pPrev, Point pCurr, Point pNext) {
     if (useVariedIntervals) {
-        double dPrev = sqrt(pow(pPrev.x - pCurr.x, 2) + pow(pPrev.y - pCurr.y, 2));
-        double d = sqrt(pow(pCurr.x - pNext.x, 2) + pow(pCurr.y - pNext.y, 2));
+        double dPrev = getDelta(pPrev, pCurr);
+        double d = getDelta(pCurr, pNext);
 
         double a = (d - dPrev) / (d * dPrev);
         double b = dPrev / (d * (d + dPrev));
@@ -255,10 +260,10 @@ std::vector<Point> getOpenEndPoints(Point p0, Point p1, Point p2) {
     std::vector<Point> endPoints;
 
     Point p1d = getDerivative(p0, p1, p2);
-    double d = sqrt(pow(p0.x - p1.x, 2) + pow(p0.y - p1.y, 2));
+    double d = getDelta(p0, p1);
 
     endPoints.push_back(p0);
-    endPoints.push_back({p1.x - 0.5 * p1d.x, p1.y - 0.5 * p1d.y});
+    endPoints.push_back({p1.x - d * 0.5 * p1d.x, p1.y - d * 0.5 * p1d.y});
     endPoints.push_back(p1);
 
     return changeSplineDegree(2, 3, endPoints);
