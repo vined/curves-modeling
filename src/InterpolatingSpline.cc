@@ -25,6 +25,7 @@ const int SPACE = 32;
 std::vector<Point> userPoints;
 
 int splineDegree = 3;
+int useVariedIntervals = 0;
 int showWorkingLines = 0;
 int showInterpolationLines = 1;
 int showSpline = 1;
@@ -48,6 +49,10 @@ int toggleValue(int val) {
 
 void toggleShowWorkingLines() {
     showWorkingLines = toggleValue(showWorkingLines);
+}
+
+void toggleUseVariedIntervals() {
+    useVariedIntervals = toggleValue(useVariedIntervals);
 }
 
 void toggleShowInterpolationLines() {
@@ -132,14 +137,6 @@ void mouseFn(int button, int state, int x, int y) {
     }
 }
 
-Point getThirdPoint(Point p1, Point p2) {
-
-    double x = (2.0 * p1.x / 3.0) + (p2.x / 3.0);
-    double y = (2.0 * p1.y / 3.0) + (p2.y / 3.0);
-
-    return {x, y};
-}
-
 Point getMidPoint(Point p1, Point p2) {
 
     double x = (p1.x + p2.x) / 2.0;
@@ -193,80 +190,6 @@ std::vector<Point> getInnerPoints(std::vector<Point> initialPoints) {
     return splinePoints;
 }
 
-std::vector<Point> getApproximation3DegreePoints(std::vector<Point> points) {
-
-    std::vector<Point> result;
-    Point firstPoint;
-    Point lastPoint;
-
-    result.push_back(points[0]);
-
-
-    for (int i = 0; i < points.size() - 1; i++) {
-        Point p1 = points[i];
-        Point p2 = points[i + 1];
-
-        firstPoint = getThirdPoint(p1, p2);
-
-        if (i > 0) {
-            result.push_back(getMidPoint(lastPoint, firstPoint));
-        }
-
-        lastPoint = getThirdPoint(p2, p1);
-
-        result.push_back(firstPoint);
-        result.push_back(lastPoint);
-    }
-
-    if (closedSpline) {
-        lastPoint = getMidPoint(lastPoint, result[1]);
-        result[0] = lastPoint;
-        result.push_back(lastPoint);
-        return result;
-    } else {
-        std::vector<Point> tmp;
-        tmp.insert(tmp.end(), result.begin() + 3, result.end());
-        return tmp;
-    }
-}
-
-std::vector<Point> getApproximation2DegreePoints(std::vector<Point> userPoints) {
-
-    std::vector<Point> result;
-
-    for (int i = 0; i < userPoints.size() - 1; i++) {
-        result.push_back(
-                getMidPoint(userPoints[i], userPoints[i + 1])
-        );
-        result.push_back(userPoints[i + 1]);
-    }
-
-    if (closedSpline) {
-        result.push_back(result[0]);
-    }
-
-    return result;
-}
-
-Point getPhantomPoint(Point pt1, Point pt2) {
-    return {2 * pt1.x - pt2.x, 2 * pt1.y - pt2.y};
-}
-
-std::vector<Point> addPhantomPoints(std::vector<Point> points) {
-    std::vector<Point> newPts;
-
-    newPts.push_back(getPhantomPoint(points[0], points[1]));
-    if (splineDegree == 2) {
-        newPts.insert(newPts.end(), points.begin() + 1, points.end() - 1);
-    } else {
-        newPts.insert(newPts.end(), points.begin(), points.end());
-    }
-
-    long n = points.size() - 1;
-    newPts.push_back(getPhantomPoint(points[n], points[n - 1]));
-
-    return newPts;
-}
 
 std::vector<Point> getSplinePoints(std::vector<Point> points) {
 
@@ -275,19 +198,6 @@ std::vector<Point> getSplinePoints(std::vector<Point> points) {
         return empty;
     }
 
-//    std::vector<Point> pts;
-//    if (closedSpline) {
-//        pts = points;
-//    } else {
-//        pts = addPhantomPoints(points);
-//    }
-//
-//    std::vector<Point> splinePoints;
-//    if (splineDegree == 3) {
-//        splinePoints = getApproximation3DegreePoints(pts);
-//    } else {
-//        splinePoints = getApproximation2DegreePoints(pts);
-//    }
     std::vector<Point> splinePoints = points;
 
     for (int i = 0; i < iterationsCount; i++) {
@@ -306,13 +216,34 @@ std::vector<Point> getSplinePoints(std::vector<Point> points) {
 std::vector<Point> getInterpolatingSplineWorkPoints(Point p1, Point p2, Point p1d, Point p2d) {
 
     std::vector<Point> pts;
-    pts.push_back(p1);
-    pts.push_back({p1.x + p1d.x / 3.0, p1.y + p1d.y / 3.0});
-    pts.push_back({p2.x - p2d.x / 3.0, p2.y - p2d.y / 3.0});
+    if (useVariedIntervals) {
+        double d = sqrt(pow(p1.x - p2.x, 2) + pow(p1.y - p2.y, 2));
+        pts.push_back(p1);
+        pts.push_back({p1.x + p1d.x * d / 3.0, p1.y + p1d.y * d / 3.0});
+        pts.push_back({p2.x - p2d.x * d / 3.0, p2.y - p2d.y * d / 3.0});
+    } else {
+        pts.push_back(p1);
+        pts.push_back({p1.x + p1d.x / 3.0, p1.y + p1d.y / 3.0});
+        pts.push_back({p2.x - p2d.x / 3.0, p2.y - p2d.y / 3.0});
+    }
     return pts;
 }
 
-Point getDerivative(Point pPrev, Point pNext) {
+Point getDerivative(Point pPrev, Point pCurr, Point pNext) {
+    if (useVariedIntervals) {
+        double dPrev = sqrt(pow(pPrev.x - pCurr.x, 2) + pow(pPrev.y - pCurr.y, 2));
+        double d = sqrt(pow(pCurr.x - pNext.x, 2) + pow(pCurr.y - pNext.y, 2));
+
+        double a = (d - dPrev) / (d * dPrev);
+        double b = dPrev / (d * (d + dPrev));
+        double c = d / (dPrev * (d + dPrev));
+
+        return {
+                a * pCurr.x + b * pNext.x - c * pPrev.x,
+                a * pCurr.y + b * pNext.y - c * pPrev.y,
+        };
+    }
+
     return {
             (pNext.x - pPrev.x) / 2.0,
             (pNext.y - pPrev.y) / 2.0,
@@ -332,7 +263,7 @@ std::vector<Point> getInterpolationPoints(std::vector<Point> pts) {
             l--;l--;
             Point p0 = pts[0];
             Point p1 = pts[1];
-            Point p1d = getDerivative(p0, pts[2]);
+            Point p1d = getDerivative(p0, p1, pts[2]);
 
             std::vector<Point> start;
 
@@ -357,15 +288,15 @@ std::vector<Point> getInterpolationPoints(std::vector<Point> pts) {
             }
 
             if (i == 0) {
-                p1d = getDerivative(pts[n], p2);
+                p1d = getDerivative(pts[n], p1, p2);
             } else {
-                p1d = getDerivative(pts[i - 1], p2);
+                p1d = getDerivative(pts[i - 1], p1, p2);
             }
 
             if (i >= (n - 1)) {
-                p2d = getDerivative(p1, pts[i - (n - 1)]);
+                p2d = getDerivative(p1, p2, pts[i - (n - 1)]);
             } else {
-                p2d = getDerivative(p1, pts[i + 2]);
+                p2d = getDerivative(p1, p2, pts[i + 2]);
             };
 
             std::vector<Point> workPoints = getInterpolatingSplineWorkPoints(p1, p2, p1d, p2d);
@@ -377,7 +308,7 @@ std::vector<Point> getInterpolationPoints(std::vector<Point> pts) {
         } else {
             Point p0 = pts[n];
             Point p1 = pts[n-1];
-            Point p1d = getDerivative(p0, pts[n-2]);
+            Point p1d = getDerivative(p0, p1, pts[n-2]);
 
             std::vector<Point> end;
 
@@ -429,13 +360,11 @@ void render() {
 }
 
 void keyboardFn(unsigned char key, int x, int y) {
-    if (key >= '2' && key <= '3') {
-        splineDegree = key - '0';
-        glutPostRedisplay();
-        return;
-    }
-
     switch (key) {
+        case 'v':
+            toggleUseVariedIntervals();
+            glutPostRedisplay();
+            break;
         case 'i':
             toggleShowInterpolationLines();
             glutPostRedisplay();
