@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <vector>
 #include <math.h>
+#include <algorithm>
 
 #include "InterpolatingSpline.h"
 #include "utils/Colors.h"
@@ -250,6 +251,19 @@ Point getDerivative(Point pPrev, Point pCurr, Point pNext) {
     };
 }
 
+std::vector<Point> getOpenEndPoints(Point p0, Point p1, Point p2) {
+    std::vector<Point> endPoints;
+
+    Point p1d = getDerivative(p0, p1, p2);
+    double d = sqrt(pow(p0.x - p1.x, 2) + pow(p0.y - p1.y, 2));
+
+    endPoints.push_back(p0);
+    endPoints.push_back({p1.x - 0.5 * p1d.x, p1.y - 0.5 * p1d.y});
+    endPoints.push_back(p1);
+
+    return changeSplineDegree(2, 3, endPoints);
+}
+
 std::vector<Point> getInterpolationPoints(std::vector<Point> pts) {
 
     if (!userPoints.empty() && userPoints.size() >= 3) {
@@ -261,18 +275,9 @@ std::vector<Point> getInterpolationPoints(std::vector<Point> pts) {
         if (!closedSpline) {
             i++;
             l--;l--;
-            Point p0 = pts[0];
-            Point p1 = pts[1];
-            Point p1d = getDerivative(p0, p1, pts[2]);
 
-            std::vector<Point> start;
-
-            start.push_back(p0);
-            start.push_back({p1.x - 0.5 * p1d.x, p1.y - 0.5 * p1d.y});
-            start.push_back(p1);
-
-            std::vector<Point> updated = changeSplineDegree(2, 3, start);
-            newPoints.insert(newPoints.end(), updated.begin(), updated.end() - 1);
+            std::vector<Point> start = getOpenEndPoints(pts[0], pts[1], pts[2]);
+            newPoints.insert(newPoints.end(), start.begin(), start.end() - 1);
         }
 
         for (; i <= l; i++) {
@@ -306,18 +311,9 @@ std::vector<Point> getInterpolationPoints(std::vector<Point> pts) {
         if (closedSpline) {
             newPoints.push_back(userPoints[0]);
         } else {
-            Point p0 = pts[n];
-            Point p1 = pts[n-1];
-            Point p1d = getDerivative(p0, p1, pts[n-2]);
-
-            std::vector<Point> end;
-
-            end.push_back(p1);
-            end.push_back({p1.x - 0.5 * p1d.x, p1.y - 0.5 * p1d.y});
-            end.push_back(p0);
-
-            std::vector<Point> updated = changeSplineDegree(2, 3, end);
-            newPoints.insert(newPoints.end(), updated.begin(), updated.end());
+            std::vector<Point> end = getOpenEndPoints(pts[n], pts[n-1], pts[n-2]);
+            std::reverse(end.begin(), end.end());
+            newPoints.insert(newPoints.end(), end.begin(), end.end());
         }
         return newPoints;
     }
