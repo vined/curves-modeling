@@ -47,3 +47,4 @@ Makefile
 casteljau
 approximatingSpline
 interpolatingSpline
+curveCutting

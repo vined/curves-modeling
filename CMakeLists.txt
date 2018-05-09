@@ -24,3 +24,6 @@ add_executable(approximatingSpline src/ApproxSpline.cc
 
 add_executable(interpolatingSpline src/InterpolatingSpline.cc
         src/utils/Colors.cc src/utils/Colors.h src/utils/Renderer.cc src/utils/Renderer.h src/utils/Points.cc src/utils/Points.h src/utils/Draw.cc src/utils/Draw.h src/utils/SplineUtils.cc src/utils/SplineUtils.h)
+
+add_executable(curveCutting src/CurveCutting.cc
+        src/utils/Colors.cc src/utils/Colors.h src/utils/Renderer.cc src/utils/Renderer.h src/utils/Points.cc src/utils/Points.h src/utils/Draw.cc src/utils/Draw.h src/utils/SplineUtils.cc src/utils/SplineUtils.h)
