@@ -4,7 +4,6 @@
 #include <vector>
 #include <math.h>
 
-#include "ApproxSpline.h"
 #include "utils/Colors.h"
 #include "utils/Points.h"
 #include "utils/Renderer.h"

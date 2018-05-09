@@ -5,7 +5,6 @@
 #include <utility>
 #include <math.h>
 
-#include "Casteljau.h"
 #include "utils/Colors.h"
 #include "utils/Points.h"
 #include "utils/Renderer.h"

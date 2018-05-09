@@ -5,7 +5,6 @@
 #include <math.h>
 #include <algorithm>
 
-#include "InterpolatingSpline.h"
 #include "utils/Colors.h"
 #include "utils/Points.h"
 #include "utils/Renderer.h"
