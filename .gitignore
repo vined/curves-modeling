@@ -48,4 +48,5 @@ casteljau
 approximatingSpline
 interpolatingSpline
 curveCutting
+thirdDegCurveCutting
 fourPointsScheme

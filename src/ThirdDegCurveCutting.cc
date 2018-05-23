@@ -153,73 +153,6 @@ Point getGhostPoint(Point prev, Point curr, Point next) {
     };
 }
 
-std::vector<Point> getMidPoints(std::vector<Point> pts) {
-    if (pts.size() == 1) {
-        return pts;
-    }
-
-    std::vector<Point> tmpPts;
-    for (int i = 0; i < pts.size() - 1; i++) {
-        tmpPts.push_back(getMidPoint(pts[i], pts[i + 1]));
-    }
-
-    std::vector<Point> midPoints = getMidPoints(tmpPts);
-    std::vector<Point> newPoints;
-    newPoints.push_back(pts[0]);
-
-    for (Point pt: midPoints) {
-        newPoints.push_back(pt);
-    }
-
-    newPoints.push_back(pts[pts.size() - 1]);
-    return newPoints;
-}
-
-std::vector<Point> doDeCasteljauStep(std::vector<Point> pts) {
-
-    std::vector<Point> splinePoints;
-
-    for (int i = 0; i < pts.size() - splineDegree; i += splineDegree) {
-        std::vector<Point> innerPoints;
-
-        for (int j = 0; j <= splineDegree; j++) {
-            innerPoints.push_back(pts[i + j]);
-        }
-
-        innerPoints = getMidPoints(innerPoints);
-
-        if (i > 0) {
-            splinePoints.insert(splinePoints.end(), innerPoints.begin() + 1, innerPoints.end());
-        } else {
-            splinePoints.insert(splinePoints.end(), innerPoints.begin(), innerPoints.end());
-        }
-    }
-
-    return splinePoints;
-}
-
-std::vector<Point> doDeCasteljau(std::vector<Point> points) {
-
-    if (points.size() < splineDegree + 1) {
-        std::vector<Point> empty;
-        return empty;
-    }
-
-    std::vector<Point> splinePoints = points;
-
-    for (int i = 0; i < iterationsCount; i++) {
-
-        splinePoints = doDeCasteljauStep(splinePoints);
-
-        if (showWorkingLines && (!drawOnlyLastIteration || i == iterationsCount - 1)) {
-            drawLine(splinePoints, THIN_LINE, getLineColor(i));
-            drawPoints(splinePoints, 6, getPointColor(i));
-        }
-    }
-
-    return splinePoints;
-}
-
 std::vector<Point> getInnerPoints(std::vector<Point> initialPoints) {
 
     std::vector<Point> newPoints;
@@ -261,9 +194,8 @@ std::vector<Point> addPhantomPoints(std::vector<Point> pts) {
     std::vector<Point> withPhantoms;
 
     if (closedSpline) {
-        withPhantoms.push_back(pts[n]);
+        withPhantoms.push_back(pts[n-1]);
         withPhantoms.insert(withPhantoms.end(), pts.begin(), pts.end());
-        withPhantoms.push_back(pts[0]);
         return withPhantoms;
     } else {
         withPhantoms.push_back(getPhantomPoint(pts[0], pts[1]));
@@ -297,28 +229,6 @@ std::vector<Point> addTrueEnds(std::vector<Point> initialPts, std::vector<Point>
     return pts;
 }
 
-std::vector<Point> getApproximation2DegreePoints(std::vector<Point> userPoints) {
-
-    std::vector<Point> result;
-
-    if (!closedSpline) {
-//        result.push_back(userPoints[0]);
-    }
-
-    for (int i = 0; i < userPoints.size() - 1; i++) {
-        result.push_back(
-                getMidPoint(userPoints[i], userPoints[i + 1])
-        );
-        result.push_back(userPoints[i + 1]);
-    }
-
-    if (closedSpline) {
-        result.push_back(result[0]);
-    }
-
-    return result;
-}
-
 std::vector<Point> getSplinePoints(std::vector<Point> points) {
 
     if (points.size() < 3) {
@@ -326,14 +236,13 @@ std::vector<Point> getSplinePoints(std::vector<Point> points) {
         return empty;
     }
 
-    return
-            addTrueEnds(points,
-                    doDeCasteljau(
-                            getApproximation2DegreePoints(
-                                    replaceWithTrueEnds(points,
-                                            getInnerPoints(
-                                                    addPhantomPoints(points))))));
+    std::vector<Point> result = points;
 
+    for (int i = 0; i < iterationsCount; i++) {
+        result = replaceWithTrueEnds(points, getInnerPoints(addPhantomPoints(result)));
+    }
+
+    return addTrueEnds(points, result);
 }
 
 std::vector<Point> getWirePoints() {
@@ -353,7 +262,7 @@ void render() {
             drawLine(points, THIN_LINE, getDefaultWireLineColor());
         }
 
-        std::vector<Point> splinePoints = getSplinePoints(userPoints);
+        std::vector<Point> splinePoints = getSplinePoints(points);
         if (showSpline) {
             drawLine(splinePoints, THICK_LINE, getDefaultSplineColor());
         }
