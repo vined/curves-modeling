@@ -25,7 +25,7 @@ const double alpha = 0.5;
 
 std::vector<Point> userPoints;
 
-double divisionCoef = 3.8;
+int splineDegree = 2;
 int showWorkingLines = 0;
 int showSpline = 1;
 int showWire = 1;
@@ -128,7 +128,7 @@ void mouseFn(int button, int state, int x, int y) {
     }
 }
 
-Point getMidPoint(Point p1, Point p2) {
+Point getMidPoint(Point p1, Point p2, double divisionCoef) {
 
     double a = (divisionCoef - 1.0) / divisionCoef;
     double b = 1.0 / divisionCoef;
@@ -139,6 +139,87 @@ Point getMidPoint(Point p1, Point p2) {
     };
 }
 
+Point getMidPoint(Point p1, Point p2) {
+    return getMidPoint(p1, p2, 2);
+}
+
+Point getGhostPoint(Point prev, Point curr, Point next) {
+    double a = 1.0 / 8.0;
+    double b = 3.0 / 4.0;
+
+    return {
+            a * prev.x + b * curr.x + a * next.x,
+            a * prev.y + b * curr.y + a * next.y,
+    };
+}
+
+std::vector<Point> getMidPoints(std::vector<Point> pts) {
+    if (pts.size() == 1) {
+        return pts;
+    }
+
+    std::vector<Point> tmpPts;
+    for (int i = 0; i < pts.size() - 1; i++) {
+        tmpPts.push_back(getMidPoint(pts[i], pts[i + 1]));
+    }
+
+    std::vector<Point> midPoints = getMidPoints(tmpPts);
+    std::vector<Point> newPoints;
+    newPoints.push_back(pts[0]);
+
+    for (Point pt: midPoints) {
+        newPoints.push_back(pt);
+    }
+
+    newPoints.push_back(pts[pts.size() - 1]);
+    return newPoints;
+}
+
+std::vector<Point> doDeCasteljauStep(std::vector<Point> pts) {
+
+    std::vector<Point> splinePoints;
+
+    for (int i = 0; i < pts.size() - splineDegree; i += splineDegree) {
+        std::vector<Point> innerPoints;
+
+        for (int j = 0; j <= splineDegree; j++) {
+            innerPoints.push_back(pts[i + j]);
+        }
+
+        innerPoints = getMidPoints(innerPoints);
+
+        if (i > 0) {
+            splinePoints.insert(splinePoints.end(), innerPoints.begin() + 1, innerPoints.end());
+        } else {
+            splinePoints.insert(splinePoints.end(), innerPoints.begin(), innerPoints.end());
+        }
+    }
+
+    return splinePoints;
+}
+
+std::vector<Point> doDeCasteljau(std::vector<Point> points) {
+
+    if (points.size() < splineDegree + 1) {
+        std::vector<Point> empty;
+        return empty;
+    }
+
+    std::vector<Point> splinePoints = points;
+
+    for (int i = 0; i < iterationsCount; i++) {
+
+        splinePoints = doDeCasteljauStep(splinePoints);
+
+        if (showWorkingLines && (!drawOnlyLastIteration || i == iterationsCount - 1)) {
+            drawLine(splinePoints, THIN_LINE, getLineColor(i));
+            drawPoints(splinePoints, 6, getPointColor(i));
+        }
+    }
+
+    return splinePoints;
+}
+
 std::vector<Point> getInnerPoints(std::vector<Point> initialPoints) {
 
     std::vector<Point> newPoints;
@@ -146,14 +227,16 @@ std::vector<Point> getInnerPoints(std::vector<Point> initialPoints) {
 
     if (!closedSpline) {
         newPoints.push_back(initialPoints[0]);
+        newPoints.push_back(getMidPoint(initialPoints[0], initialPoints[1]));
     }
 
-    for (int i = 0; i <= n - 1 ; i++) {
-        Point p1 = initialPoints[i];
-        Point p2 = initialPoints[i+1];
+    for (int i = 1; i <= n - 1 ; i++) {
+        Point prev = initialPoints[i-1];
+        Point curr = initialPoints[i];
+        Point next = initialPoints[i+1];
 
-        newPoints.push_back(getMidPoint(p1, p2));
-        newPoints.push_back(getMidPoint(p2, p1));
+        newPoints.push_back(getGhostPoint(prev, curr, next));
+        newPoints.push_back(getMidPoint(curr, next));
     }
 
     if (closedSpline) {
@@ -166,26 +249,75 @@ std::vector<Point> getInnerPoints(std::vector<Point> initialPoints) {
 }
 
 Point getPhantomPoint(Point p1, Point p2) {
-    double t = 1;
+    double t = 0.25;
     return {
-            (2 * p1.x - p2.x) * t + p1.x * (1 - t),
-            (2 * p1.y - p2.y) * t + p1.y * (1 - t)
+            (2.0 * p1.x - p2.x) * t + p1.x * (1.0 - t),
+            (2.0 * p1.y - p2.y) * t + p1.y * (1.0 - t)
     };
 }
 
 std::vector<Point> addPhantomPoints(std::vector<Point> pts) {
-    if (!closedSpline) {
-        long n = pts.size() - 1;
-        std::vector<Point> withPhantoms;
+    long n = pts.size() - 1;
+    std::vector<Point> withPhantoms;
 
+    if (closedSpline) {
+        withPhantoms.push_back(pts[n]);
+        withPhantoms.insert(withPhantoms.end(), pts.begin(), pts.end());
+        withPhantoms.push_back(pts[0]);
+        return withPhantoms;
+    } else {
         withPhantoms.push_back(getPhantomPoint(pts[0], pts[1]));
         withPhantoms.insert(withPhantoms.end(), pts.begin()+1, pts.end()-1);
         withPhantoms.push_back(getPhantomPoint(pts[n], pts[n-1]));
         return withPhantoms;
     }
-    return pts;
 };
 
+std::vector<Point> replaceWithTrueEnds(std::vector<Point> initialPts, std::vector<Point> pts) {
+    if (!closedSpline) {
+        long n = initialPts.size() - 1;
+        std::vector<Point> result;
+        result.push_back(initialPts[0]);
+        result.insert(result.end(), pts.begin() + 1, pts.end() - 1);
+        result.push_back(initialPts[n]);
+        return result;
+    }
+    return pts;
+}
+
+std::vector<Point> addTrueEnds(std::vector<Point> initialPts, std::vector<Point> pts) {
+    if (!closedSpline) {
+        long n = initialPts.size() - 1;
+        std::vector<Point> result;
+        result.push_back(initialPts[0]);
+        result.insert(result.end(), pts.begin(), pts.end());
+        result.push_back(initialPts[n]);
+        return result;
+    }
+    return pts;
+}
+
+std::vector<Point> getApproximation2DegreePoints(std::vector<Point> userPoints) {
+
+    std::vector<Point> result;
+
+    if (!closedSpline) {
+//        result.push_back(userPoints[0]);
+    }
+
+    for (int i = 0; i < userPoints.size() - 1; i++) {
+        result.push_back(
+                getMidPoint(userPoints[i], userPoints[i + 1])
+        );
+        result.push_back(userPoints[i + 1]);
+    }
+
+    if (closedSpline) {
+        result.push_back(result[0]);
+    }
+
+    return result;
+}
 
 std::vector<Point> getSplinePoints(std::vector<Point> points) {
 
@@ -194,30 +326,14 @@ std::vector<Point> getSplinePoints(std::vector<Point> points) {
         return empty;
     }
 
-    long n = points.size() - 1;
-    std::vector<Point> splinePoints = points;
+    return
+            addTrueEnds(points,
+                    doDeCasteljau(
+                            getApproximation2DegreePoints(
+                                    replaceWithTrueEnds(points,
+                                            getInnerPoints(
+                                                    addPhantomPoints(points))))));
 
-    for (int i = 0; i < iterationsCount; i++) {
-
-        std::vector<Point> newSplinePoints = getInnerPoints(addPhantomPoints(splinePoints));
-
-        if (showWorkingLines && (!drawOnlyLastIteration || i == iterationsCount - 1)) {
-            drawLine(newSplinePoints, THIN_LINE, getLineColor(i));
-            drawPoints(newSplinePoints, 6, getPointColor(i));
-        }
-
-        if (!closedSpline) {
-            splinePoints.clear();
-            splinePoints.insert(splinePoints.begin(), newSplinePoints.begin() + 1, newSplinePoints.end() - 1);
-
-            splinePoints[0] = points[0];
-            splinePoints[splinePoints.size() - 1] = points[n];
-        } else {
-            splinePoints = newSplinePoints;
-        }
-    }
-
-    return splinePoints;
 }
 
 std::vector<Point> getWirePoints() {
@@ -237,7 +353,7 @@ void render() {
             drawLine(points, THIN_LINE, getDefaultWireLineColor());
         }
 
-        std::vector<Point> splinePoints = getSplinePoints(points);
+        std::vector<Point> splinePoints = getSplinePoints(userPoints);
         if (showSpline) {
             drawLine(splinePoints, THICK_LINE, getDefaultSplineColor());
         }
@@ -251,17 +367,7 @@ void render() {
 }
 
 void keyboardFn(unsigned char key, int x, int y) {
-    if (key >= '3' && key <= '9') {
-        divisionCoef = (double) key - '0';
-        glutPostRedisplay();
-        return;
-    }
-
     switch (key) {
-        case '2':
-            divisionCoef = 3.8;
-            glutPostRedisplay();
-            break;
         case 's':
             toggleShowSpline();
             glutPostRedisplay();
@@ -308,7 +414,7 @@ void keyboardFn(unsigned char key, int x, int y) {
 }
 
 int main(int argc, char **argv) {
-    render(argc, argv, "Chaikin spline", render, keyboardFn, mouseFn, mouseMotionFn);
+    render(argc, argv, "Third degree curve cutting spline", render, keyboardFn, mouseFn, mouseMotionFn);
     return 0;
 }
 
