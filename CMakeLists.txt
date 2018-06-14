@@ -33,3 +33,6 @@ add_executable(thirdDegCurveCutting src/ThirdDegCurveCutting.cc
 
 add_executable(fourPointsScheme src/FourPointsScheme.cc
         src/utils/Colors.cc src/utils/Colors.h src/utils/Renderer.cc src/utils/Renderer.h src/utils/Points.cc src/utils/Points.h src/utils/Draw.cc src/utils/Draw.h src/utils/SplineUtils.cc src/utils/SplineUtils.h)
+
+add_executable(approxCubicSpline src/ApproxCubicSpline.cc
+        src/utils/Colors.cc src/utils/Colors.h src/utils/Renderer.cc src/utils/Renderer.h src/utils/Points.cc src/utils/Points.h src/utils/Draw.cc src/utils/Draw.h src/utils/SplineUtils.cc src/utils/SplineUtils.h)

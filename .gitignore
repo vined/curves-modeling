@@ -46,6 +46,7 @@ Makefile
 # Project
 casteljau
 approximatingSpline
+approxCubicSpline
 interpolatingSpline
 curveCutting
 thirdDegCurveCutting
