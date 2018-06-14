@@ -21,6 +21,7 @@ const int SPACE = 32;
 
 
 std::vector<Point> userPoints;
+std::vector<long> zeroedDeltas;
 
 int splineDegree = 3;
 int showWorkingLines = 0;
@@ -68,6 +69,18 @@ void toggleDrawOnlyLastIteration() {
     drawOnlyLastIteration = toggleValue(drawOnlyLastIteration);
 }
 
+std::vector<Point> getUserPoints() {
+
+    std::vector<Point> pts = userPoints;
+
+    if (!userPoints.empty() && userPoints.size() >= 3) {
+        pts.push_back(userPoints[0]);
+        return pts;
+    }
+
+    return pts;
+};
+
 double getPointsDiff(Point p1, Point p2) {
     return fabs(p1.x - p2.x) + fabs(p1.y - p2.y);
 }
@@ -76,6 +89,23 @@ int getNearbyPoint(Point point, double epsilon) {
     for (int i = 0; i < userPoints.size(); i++) {
         Point p = userPoints[i];
         if (getPointsDiff(point, p) < epsilon) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+double getDistanceToLine(Point lp1, Point lp2, Point p) {
+    return fabs( (lp2.y - lp1.y) * p.x - (lp2.x - lp1.x) * p.y + lp2.x * lp1.y - lp2.y * lp1.x)
+           / sqrt( pow(lp2.y - lp1.y, 2.0) + pow(lp2.x - lp1.x, 2.0) );
+}
+
+int getNearbyLine(Point p, double epsilon) {
+    std::vector<Point> pts = getUserPoints();
+    for (int i = 0; i < pts.size() - 1; i++) {
+        Point lp1 = pts[i];
+        Point lp2 = pts[i+1];
+        if (getDistanceToLine(lp1, lp2, p) < epsilon) {
             return i;
         }
     }
@@ -97,6 +127,15 @@ void mouseMotionFn(int x, int y) {
     }
 }
 
+int getItemIdx(std::vector<long> vec, long item) {
+    for (int i = 0; i < vec.size(); i++) {
+        if (zeroedDeltas[i] == item) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 void mouseFn(int button, int state, int x, int y) {
 
     if (state == GLUT_UP) {
@@ -110,12 +149,29 @@ void mouseFn(int button, int state, int x, int y) {
         int pointId = getNearbyPoint(newPoint, 0.01);
 
         if (pointId >= 0) {
+
             userPoints[pointId] = newPoint;
             draggingId = pointId;
             dragging = 1;
+
         } else if (allowNewPoints) {
+
             userPoints.push_back(newPoint);
+
+        } else {
+
+            int lineId = getNearbyLine(newPoint, 0.01);
+
+            if (lineId >= 0) {
+                int idx = getItemIdx(zeroedDeltas, lineId);
+                if (idx >= 0) {
+                    zeroedDeltas.erase(zeroedDeltas.begin() + idx);
+                } else {
+                    zeroedDeltas.push_back(lineId);
+                }
+            }
         }
+
         glutPostRedisplay();
     }
 }
@@ -241,7 +297,11 @@ std::vector<double> getDeltas(std::vector<Point> pts) {
     std::vector<double> deltas;
 
     for (int i = 0; i < pts.size() - 1; i++) {
-        deltas.push_back(getDelta(pts[i], pts[i+1]));
+        if (getItemIdx(zeroedDeltas, i) >= 0) {
+            deltas.push_back(0.0);
+        } else {
+            deltas.push_back(getDelta(pts[i], pts[i + 1]));
+        }
     }
 
     return deltas;
@@ -264,18 +324,6 @@ std::vector<Point> getSplinePoints(std::vector<Point> points) {
     return splinePoints;
 }
 
-std::vector<Point> getUserPoints() {
-
-    std::vector<Point> pts = userPoints;
-
-    if (!userPoints.empty() && userPoints.size() >= 3) {
-        pts.push_back(userPoints[0]);
-        return pts;
-    }
-
-    return pts;
-};
-
 void render() {
     glClear(GL_COLOR_BUFFER_BIT);
 
@@ -283,6 +331,16 @@ void render() {
         std::vector<Point> points = getUserPoints();;
         if (showWire) {
             drawLine(points, THIN_LINE, getDefaultWireLineColor());
+        }
+
+        if (!zeroedDeltas.empty()) {
+            for (long idx : zeroedDeltas) {
+                std::vector<Point> line;
+                line.push_back(points[idx]);
+                line.push_back(points[idx+1]);
+
+                drawLine(line, THIN_LINE, getLineColor(0));
+            }
         }
 
         std::vector<Point> splinePoints = getSplinePoints(points);
@@ -330,10 +388,6 @@ void keyboardFn(unsigned char key, int x, int y) {
             break;
         case 'l':
             toggleDrawOnlyLastIteration();
-            glutPostRedisplay();
-            break;
-        case '0':
-            //TODO zero delta i
             glutPostRedisplay();
             break;
         case SPACE:
