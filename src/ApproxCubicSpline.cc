@@ -57,6 +57,7 @@ void toggleShowWire() {
 
 void clearPoints() {
     userPoints.clear();
+    zeroedDeltas.clear();
 }
 
 void updateIterationsCount(int cnt) {
@@ -229,12 +230,16 @@ std::vector<Point> getInnerPoints(std::vector<Point> initialPoints) {
     return splinePoints;
 }
 
-Point getVertex(Point prev_b2, Point next_b1, double prev_d, double next_d) {
+Point getVertex(Point prev_b2, Point next_b1, Point current, double prev_d, double next_d) {
     double len = prev_d + next_d;
-    return {
-            (next_d / len) * prev_b2.x + (prev_d / len) * next_b1.x,
-            (next_d / len) * prev_b2.y + (prev_d / len) * next_b1.y,
-    };
+    if (len > 0) {
+        return {
+                (next_d / len) * prev_b2.x + (prev_d / len) * next_b1.x,
+                (next_d / len) * prev_b2.y + (prev_d / len) * next_b1.y,
+        };
+    } else {
+        return current;
+    }
 }
 
 std::vector<Point> getApproximation3DegreePoints(std::vector<Point> points, std::vector<double> deltas) {
@@ -258,25 +263,30 @@ std::vector<Point> getApproximation3DegreePoints(std::vector<Point> points, std:
 
         double length = deltas[prevIdx] + deltas[i] + deltas[nextIdx];
 
-        Point b1 = {
-                ((deltas[i] + deltas[nextIdx]) / length) * p1.x + (deltas[prevIdx] / length) * p2.x,
-                ((deltas[i] + deltas[nextIdx]) / length) * p1.y + (deltas[prevIdx] / length) * p2.y,
-        };
+        Point b1 = p1;
+        Point b2 = p2;
 
-        Point b2 = {
-                (deltas[nextIdx] / length) * p1.x + ((deltas[prevIdx] + deltas[i]) / length) * p2.x,
-                (deltas[nextIdx] / length) * p1.y + ((deltas[prevIdx] + deltas[i]) / length) * p2.y,
-        };
+        if (length > 0) {
+            b1 = {
+                    ((deltas[i] + deltas[nextIdx]) / length) * p1.x + (deltas[prevIdx] / length) * p2.x,
+                    ((deltas[i] + deltas[nextIdx]) / length) * p1.y + (deltas[prevIdx] / length) * p2.y,
+            };
+
+            b2 = {
+                    (deltas[nextIdx] / length) * p1.x + ((deltas[prevIdx] + deltas[i]) / length) * p2.x,
+                    (deltas[nextIdx] / length) * p1.y + ((deltas[prevIdx] + deltas[i]) / length) * p2.y,
+            };
+        }
 
         if (i != 0) {
-            result.push_back(getVertex(result[result.size()-1], b1, deltas[prevIdx], deltas[i]));
+            result.push_back(getVertex(result[result.size()-1], b1, p1, deltas[prevIdx], deltas[i]));
         }
 
         result.push_back(b1);
         result.push_back(b2);
     }
 
-    result.push_back(getVertex(result[result.size()-1], result[0], deltas[n-2], deltas[0]));
+    result.push_back(getVertex(result[result.size()-1], result[0], points[n], deltas[n-1], deltas[0]));
 
     std::vector<Point> final;
     final.push_back(result[result.size()-1]);
