@@ -1,5 +1,6 @@
 #include <GL/glut.h>
 #include <vector>
+#include <string>
 
 #include "Draw.h"
 
@@ -46,3 +47,10 @@ void drawRect(std::pair<Point, Point> r, int width, Color color) {
     drawLine(rect, width, color);
 }
 
+void drawText(double x, double y, std::string text, Color color) {
+    glColor3f(color.r, color.g, color.b);
+    glRasterPos2f(x, y);
+    for (int i=0; i < text.size(); i++) {
+        glutBitmapCharacter(GLUT_BITMAP_9_BY_15, text[i]);
+    }
+}
