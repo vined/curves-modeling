@@ -34,6 +34,7 @@ const int SPACE = 32;
 
 std::vector<int> sliderLabels = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 std::vector<Point> userPoints;
+std::vector<double> weights;
 
 int splineDegree = 2;
 int showWorkingLines = 0;
@@ -42,13 +43,12 @@ int showWire = 1;
 int iterationsCount = IT_CNT;
 int drawOnlyLastIteration = 0;
 int closedSpline = 1;
-double weight = 1.0;
 int draggingSlider = 0;
 
 int allowNewPoints = 1;
 
 int dragging = 0;
-int draggingId = -1;
+int activePointIdx = -1;
 
 int toggleValue(int val) {
     if (val == 0) {
@@ -139,12 +139,12 @@ Point getMousePosition(int x, int y) {
 void mouseMotionFn(int x, int y) {
     Point pos = getMousePosition(x, y);
     if (dragging) {
-        userPoints[draggingId] = pos;
+        userPoints[activePointIdx] = pos;
         glutPostRedisplay();
     }
 
     if (draggingSlider) {
-        weight = fromLogScale(pos.y - SLIDER_BOTTOM, sliderLabels.size());
+        weights.at(activePointIdx) = fromLogScale(pos.y - SLIDER_BOTTOM, sliderLabels.size());
         glutPostRedisplay();
     }
 }
@@ -154,7 +154,6 @@ void mouseFn(int button, int state, int x, int y) {
     if (state == GLUT_UP) {
         dragging = 0;
         draggingSlider = 0;
-        draggingId = -1;
     }
 
     if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
@@ -162,8 +161,8 @@ void mouseFn(int button, int state, int x, int y) {
         Point newPoint = getMousePosition(x, y);
 
         int isSliderPoint = isClickOnSlider(newPoint, 0.02);
-        if (isSliderPoint) {
-            weight = fromLogScale(newPoint.y - SLIDER_BOTTOM, sliderLabels.size());
+        if (activePointIdx > -1 && isSliderPoint) {
+            weights.at(activePointIdx) = fromLogScale(newPoint.y - SLIDER_BOTTOM, sliderLabels.size());
             draggingSlider = 1;
             glutPostRedisplay();
             return;
@@ -172,10 +171,14 @@ void mouseFn(int button, int state, int x, int y) {
         int pointId = getNearbyPoint(newPoint, 0.01);
         if (pointId >= 0) {
             userPoints[pointId] = newPoint;
-            draggingId = pointId;
+            activePointIdx = pointId;
             dragging = 1;
         } else if (allowNewPoints) {
             userPoints.push_back(newPoint);
+            weights.push_back(1.0);
+            activePointIdx = -1;
+        } else {
+            activePointIdx = -1;
         }
         glutPostRedisplay();
     }
@@ -410,20 +413,24 @@ void render() {
     }
 
     // Drawing slider
-    drawLine(getSlider(), THIN_LINE, getDefaultWireLineColor());
+    if (activePointIdx > -1) {
+        drawLine(getSlider(), THIN_LINE, getDefaultWireLineColor());
 
-    for (std::pair<int, std::vector<Point>> tickData : getTicks(sliderLabels)) {
-        drawLine(tickData.second, THIN_LINE, getDefaultWireLineColor());
-        Point textPos = tickData.second[1];
-        drawText(textPos.x + TEXT_OFFSET, textPos.y - TEXT_OFFSET, std::to_string(tickData.first), getDefaultUserPointColor());
+        for (std::pair<int, std::vector<Point>> tickData : getTicks(sliderLabels)) {
+            drawLine(tickData.second, THIN_LINE, getDefaultWireLineColor());
+            Point textPos = tickData.second[1];
+            drawText(textPos.x + TEXT_OFFSET, textPos.y - TEXT_OFFSET, std::to_string(tickData.first),
+                     getDefaultUserPointColor());
+        }
+
+        std::stringstream stream;
+        stream << std::fixed << std::setprecision(2) << weights[activePointIdx];
+        drawText(SLIDER_X - 2 * TEXT_OFFSET, SLIDER_BOTTOM - 5 * TEXT_OFFSET, stream.str(), getDefaultUserPointColor());
+
+        double dotY = SLIDER_BOTTOM + toLogScale(weights[activePointIdx], sliderLabels.size());
+        drawPoint({SLIDER_X, dotY}, 14, getDefaultUserPointColor());
+        drawPoint(userPoints[activePointIdx], 12, getPointColor(1));
     }
-
-    std::stringstream stream;
-    stream << std::fixed << std::setprecision(2) << weight;
-    drawText(SLIDER_X - 2*TEXT_OFFSET, SLIDER_BOTTOM - 5*TEXT_OFFSET, stream.str(), getDefaultUserPointColor());
-
-    double dotY = SLIDER_BOTTOM + toLogScale(weight, sliderLabels.size());
-    drawPoint({SLIDER_X, dotY}, 14, getDefaultUserPointColor());
 
     glFlush();
 }
@@ -451,6 +458,8 @@ void keyboardFn(unsigned char key, int x, int y) {
         case 'c':
             clearPoints();
             allowNewPoints = 1;
+            activePointIdx = -1;
+            weights.clear();
             glutPostRedisplay();
             break;
         case 'k':
